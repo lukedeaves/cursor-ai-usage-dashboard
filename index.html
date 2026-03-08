@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cursor AI Usage Dashboard</title>
+
+  <!-- Papa Parse -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- Chart.js date adapter -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <!-- Tabulator -->
+  <link href="https://unpkg.com/tabulator-tables@6.2.1/dist/css/tabulator.min.css" rel="stylesheet" />
+  <script src="https://unpkg.com/tabulator-tables@6.2.1/dist/js/tabulator.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3250;
+      --accent: #7c6af7;
+      --accent2: #56cfb2;
+      --accent3: #f7a76a;
+      --accent4: #f76a8a;
+      --text: #e8eaf0;
+      --text-muted: #8890b0;
+      --radius: 12px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.35);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header-left h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .header-left h1 span { color: var(--accent); }
+    .header-left p { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+
+    .upload-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .upload-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .upload-btn:hover { opacity: 0.85; }
+    .upload-btn svg { flex-shrink: 0; }
+
+    #file-input { display: none; }
+
+    #file-label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Date range pill ── */
+    #date-range-badge {
+      display: none;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+    }
+
+    /* ── Main content ── */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    /* ── Empty state ── */
+    #empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 380px;
+      gap: 16px;
+      text-align: center;
+    }
+    #empty-state svg { opacity: 0.25; }
+    #empty-state h2 { font-size: 1.2rem; color: var(--text-muted); font-weight: 500; }
+    #empty-state p { font-size: 0.85rem; color: var(--text-muted); max-width: 320px; line-height: 1.6; }
+
+    /* ── Dashboard sections (hidden until CSV loaded) ── */
+    #dashboard { display: none; flex-direction: column; gap: 32px; }
+
+    /* ── KPI Cards ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: var(--shadow);
+    }
+    .kpi-card .kpi-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+    .kpi-card .kpi-value {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .kpi-card .kpi-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .kpi-card.accent-purple .kpi-value { color: var(--accent); }
+    .kpi-card.accent-teal   .kpi-value { color: var(--accent2); }
+    .kpi-card.accent-orange .kpi-value { color: var(--accent3); }
+    .kpi-card.accent-pink   .kpi-value { color: var(--accent4); }
+
+    /* ── Section card ── */
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .section-card h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 20px;
+      letter-spacing: -0.01em;
+    }
+    .section-card h2 small {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-left: 8px;
+    }
+
+    /* ── Two-column chart row ── */
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .chart-row { grid-template-columns: 1fr; }
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 320px;
+    }
+
+    /* ── Tabulator overrides ── */
+    #data-table-wrap .tabulator {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.82rem;
+    }
+    #data-table-wrap .tabulator .tabulator-header {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    #data-table-wrap .tabulator .tabulator-header .tabulator-col {
+      background: transparent;
+      border-right: 1px solid var(--border);
+    }
+    #data-table-wrap .tabulator .tabulator-header .tabulator-col-content { padding: 8px 10px; }
+    #data-table-wrap .tabulator .tabulator-row {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    #data-table-wrap .tabulator .tabulator-row:nth-child(even) { background: var(--surface2); }
+    #data-table-wrap .tabulator .tabulator-row:hover { background: var(--surface2) !important; }
+    #data-table-wrap .tabulator .tabulator-cell { padding: 7px 10px; border-right: 1px solid var(--border); }
+    #data-table-wrap .tabulator .tabulator-footer {
+      background: var(--surface2);
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+    #data-table-wrap .tabulator-page-size,
+    #data-table-wrap .tabulator-page {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+    #data-table-wrap .tabulator-page.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* ── Toggle group for time granularity ── */
+    .toggle-group {
+      display: inline-flex;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .filter-bar .toggle-group {
+      margin-left: 0;
+    }
+    .toggle-group button {
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      padding: 5px 14px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.1s, color 0.1s;
+    }
+    .toggle-group button.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .section-header h2 { margin-bottom: 0; flex: 1; }
+
+    /* ── Cost chart wrapper (taller) ── */
+    #cost-chart-wrap { height: 280px; }
+    #model-chart-wrap { height: 340px; }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-group label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .filter-group input[type="date"] {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 0.84rem;
+      min-width: 130px;
+      cursor: pointer;
+    }
+
+    .filter-group input[type="date"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    /* ── Custom multi-select dropdown ── */
+    .ms-wrap {
+      position: relative;
+      min-width: 160px;
+    }
+
+    .ms-trigger {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 0.84rem;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      white-space: nowrap;
+      transition: border-color 0.15s;
+    }
+    .ms-trigger:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .ms-wrap.open .ms-trigger { border-color: var(--accent); border-radius: 6px 6px 0 0; }
+
+    .ms-chevron { flex-shrink: 0; transition: transform 0.15s; color: var(--text-muted); }
+    .ms-wrap.open .ms-chevron { transform: rotate(180deg); }
+
+    .ms-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 1px 6px;
+      margin-left: 2px;
+    }
+
+    .ms-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--surface2);
+      border: 1px solid var(--accent);
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 200;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      min-width: 100%;
+    }
+    .ms-wrap.open .ms-dropdown { display: block; }
+
+    .ms-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 12px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .ms-item:hover { background: rgba(124,106,247,0.12); }
+    .ms-item input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .ms-item label {
+      font-size: 0.84rem;
+      color: var(--text);
+      cursor: pointer;
+      flex: 1;
+      user-select: none;
+    }
+
+    .ms-search {
+      display: block;
+      width: calc(100% - 16px);
+      margin: 6px 8px 4px;
+      padding: 5px 8px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      outline: none;
+    }
+    .ms-search:focus { border-color: var(--accent); }
+    .ms-search::placeholder { color: var(--text-muted); }
+
+    .ms-no-results {
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      display: none;
+    }
+
+    .reset-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 16px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      margin-bottom: 1px;
+    }
+    .reset-btn:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .clear-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .clear-btn:hover {
+      background: rgba(247,106,138,0.15);
+      color: var(--accent4);
+      border-color: var(--accent4);
+    }
+
+    #storage-label {
+      font-size: 0.78rem;
+      color: var(--accent2);
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ────────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <h1><span>Cursor</span> AI Usage Dashboard</h1>
+    <p>Upload your usage CSV export to visualise spending and token consumption</p>
+  </div>
+  <div class="upload-area">
+    <span id="date-range-badge"></span>
+    <span id="storage-label"></span>
+    <span id="file-label">No file loaded</span>
+    <button class="clear-btn" id="clear-data-btn" style="display:none">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+      </svg>
+      Clear stored data
+    </button>
+    <label class="upload-btn" for="file-input">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      Import CSV
+    </label>
+    <input type="file" id="file-input" accept=".csv" />
+  </div>
+</header>
+
+<!-- ── Main ──────────────────────────────────────────── -->
+<main>
+
+  <!-- Empty state -->
+  <div id="empty-state">
+    <svg width="80" height="80" fill="none" stroke="#8890b0" stroke-width="1.5" viewBox="0 0 24 24">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/>
+      <line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10 9 9 9 8 9"/>
+    </svg>
+    <h2>No data loaded yet</h2>
+    <p>Upload a Cursor usage CSV export using the button above to generate your dashboard.</p>
+  </div>
+
+  <!-- Dashboard (shown after CSV load) -->
+  <div id="dashboard">
+
+    <!-- Filter Bar -->
+    <div class="filter-bar" id="filter-bar">
+      <div class="filter-group">
+        <label for="f-date-from">From</label>
+        <input type="date" id="f-date-from" />
+      </div>
+      <div class="filter-group">
+        <label for="f-date-to">To</label>
+        <input type="date" id="f-date-to" />
+      </div>
+      <div class="filter-group" id="filter-user-group">
+        <label>User</label>
+        <div class="ms-wrap" id="ms-user" data-placeholder="All users"></div>
+      </div>
+      <div class="filter-group">
+        <label>Kind</label>
+        <div class="ms-wrap" id="ms-kind" data-placeholder="All kinds"></div>
+      </div>
+      <div class="filter-group">
+        <label>Model</label>
+        <div class="ms-wrap" id="ms-model" data-placeholder="All models"></div>
+      </div>
+      <button class="reset-btn" id="f-reset">Reset</button>
+      <div class="filter-group" style="margin-left: auto;">
+        <div class="toggle-group" id="metric-toggle">
+          <button data-metric="requests" class="active">Requests</button>
+          <button data-metric="cost">Cost</button>
+          <button data-metric="tokens">Tokens</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card accent-purple">
+        <div class="kpi-label">Total Cost</div>
+        <div class="kpi-value" id="kpi-cost">—</div>
+        <div class="kpi-sub" id="kpi-cost-sub"></div>
+      </div>
+      <div class="kpi-card accent-teal">
+        <div class="kpi-label">Total Requests</div>
+        <div class="kpi-value" id="kpi-requests">—</div>
+        <div class="kpi-sub" id="kpi-requests-sub"></div>
+      </div>
+      <div class="kpi-card accent-orange">
+        <div class="kpi-label">Total Tokens</div>
+        <div class="kpi-value" id="kpi-tokens">—</div>
+        <div class="kpi-sub" id="kpi-tokens-sub"></div>
+      </div>
+      <div class="kpi-card accent-pink">
+        <div class="kpi-label">Output Tokens</div>
+        <div class="kpi-value" id="kpi-output">—</div>
+        <div class="kpi-sub" id="kpi-output-sub"></div>
+      </div>
+    </div>
+
+    <!-- Over Time -->
+    <div class="section-card">
+      <div class="section-header">
+        <h2 id="time-chart-title">Requests Over Time</h2>
+        <div class="toggle-group" id="granularity-toggle" style="margin-left:auto;">
+          <button data-gran="day" class="active">Day</button>
+          <button data-gran="week">Week</button>
+          <button data-gran="month">Month</button>
+        </div>
+      </div>
+      <div class="chart-wrap" id="cost-chart-wrap">
+        <canvas id="cost-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Model Breakdown -->
+    <div class="section-card">
+      <h2 id="model-chart-title">Requests by Model</h2>
+      <div class="chart-wrap" id="model-chart-wrap">
+        <canvas id="model-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Raw Data Table -->
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Raw Data <small id="table-summary"></small></h2>
+        <button class="upload-btn" id="export-btn" style="display:none;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Export CSV
+        </button>
+      </div>
+      <div id="data-table-wrap">
+        <div id="data-table"></div>
+      </div>
+    </div>
+
+  </div><!-- /#dashboard -->
+</main>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────
+let rawData = [];
+let filteredData = [];
+let costChart = null;
+let modelChart = null;
+let table = null;
+let granularity = 'day'; // day | week | month
+let metric = 'requests'; // cost | requests | tokens
+let modelColorMap = {}; // model name → palette colour, shared between both charts
+let hasUsers = false; // true when the CSV contains a non-empty User column
+let tableHasUsers = null; // tracks the hasUsers value the table was built with
+let hiddenTokenComponents = new Set(); // tracks which token components are hidden via legend clicks
+
+// ─────────────────────────────────────────────────────────────
+// IndexedDB persistence
+// ─────────────────────────────────────────────────────────────
+const DB_NAME    = 'cursor-usage-db';
+const DB_VERSION = 1;
+const DB_STORE   = 'rows';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const store = e.target.result.createObjectStore(DB_STORE, { autoIncrement: true });
+      store.createIndex('rowKey', 'rowKey', { unique: true });
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+function makeRowKey(r) {
+  return [r.date, r.user, r.kind, r.model, r.maxMode,
+          r.inputCache, r.inputNoCache, r.cacheRead,
+          r.output, r.total, r.cost.toFixed(6)].join('|');
+}
+
+async function mergeRowsIntoDB(rows) {
+  const db    = await openDB();
+  const tx    = db.transaction(DB_STORE, 'readwrite');
+  const store = tx.objectStore(DB_STORE);
+  const index = store.index('rowKey');
+  let added = 0;
+  for (const r of rows) {
+    const key = makeRowKey(r);
+    const exists = await new Promise(res => {
+      const q = index.getKey(key);
+      q.onsuccess = e => res(e.target.result !== undefined);
+      q.onerror   = () => res(false);
+    });
+    if (!exists) {
+      await new Promise(res => {
+        const q = store.add({ ...r, rowKey: key });
+        q.onsuccess = () => res();
+        q.onerror   = () => res();
+      });
+      added++;
+    }
+  }
+  return added;
+}
+
+async function loadAllFromDB() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).getAll();
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+async function clearDB() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).clear();
+    tx.oncomplete = resolve;
+    tx.onerror    = e => reject(e.target.error);
+  });
+}
+
+function setStorageLabel(count) {
+  const el = document.getElementById('storage-label');
+  const btn = document.getElementById('clear-data-btn');
+  if (count > 0) {
+    el.textContent    = `${count.toLocaleString()} rows stored`;
+    el.style.display  = 'inline';
+    btn.style.display = 'inline-flex';
+  } else {
+    el.style.display  = 'none';
+    btn.style.display = 'none';
+  }
+}
+
+// Load from DB on page open
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const rows = await loadAllFromDB();
+    if (!rows.length) return;
+    rawData  = rows;
+    hasUsers = rawData.some(r => r.user !== '');
+    document.getElementById('file-label').textContent = 'Loaded from storage';
+    setStorageLabel(rows.length);
+    restoreSettings();
+    populateSlicers(); // Always set dates from dataset after restoring other settings
+    updateSlicerOptions();
+    applyFilters();
+  } catch (e) {
+    console.warn('Could not load from IndexedDB:', e);
+  }
+});
+
+document.getElementById('clear-data-btn').addEventListener('click', async () => {
+  if (!confirm('Clear all stored data? This cannot be undone.')) return;
+  await clearDB();
+  rawData = [];
+  filteredData = [];
+  hasUsers = false;
+  tableHasUsers = null;
+  if (table) { table.destroy(); table = null; }
+  setStorageLabel(0);
+  document.getElementById('file-label').textContent = 'No file loaded';
+  document.getElementById('date-range-badge').style.display = 'none';
+  document.getElementById('empty-state').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+});
+
+// ─────────────────────────────────────────────────────────────
+// User settings persistence (localStorage)
+// ─────────────────────────────────────────────────────────────
+const SETTINGS_KEY = 'cursor-usage-settings';
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      dateFrom:    document.getElementById('f-date-from').value,
+      dateTo:      document.getElementById('f-date-to').value,
+      users:       getMsValues('ms-user'),
+      kinds:       getMsValues('ms-kind'),
+      models:      getMsValues('ms-model'),
+      metric:      metric,
+      granularity: granularity,
+    }));
+  } catch (e) { /* localStorage unavailable */ }
+}
+
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null'); }
+  catch { return null; }
+}
+
+function clearSettings() {
+  try { localStorage.removeItem(SETTINGS_KEY); } catch (e) {}
+}
+
+function restoreSettings() {
+  const s = loadSettings();
+  if (!s) return;
+
+  // Restore date range (but start date will be overridden by populateSlicers to use earliest date)
+  // Only restore end date if saved, start date always comes from dataset
+  if (s.dateTo)   document.getElementById('f-date-to').value   = s.dateTo;
+
+  // Restore multi-select checkboxes (only for values that exist in the current data)
+  const applyChecks = (wrapperId, saved) => {
+    if (!saved || !saved.length) return;
+    const set = new Set(saved);
+    document.querySelectorAll(`#${wrapperId} .ms-dropdown input[type="checkbox"]`).forEach(cb => {
+      if (set.has(cb.value)) cb.checked = true;
+    });
+    updateMsTrigger(wrapperId);
+  };
+  applyChecks('ms-user',  s.users);
+  applyChecks('ms-kind',  s.kinds);
+  applyChecks('ms-model', s.models);
+
+  // Restore metric toggle
+  if (s.metric && ['cost','requests','tokens'].includes(s.metric)) {
+    metric = s.metric;
+    document.querySelectorAll('#metric-toggle button').forEach(b =>
+      b.classList.toggle('active', b.dataset.metric === metric));
+  }
+
+  // Restore granularity toggle
+  if (s.granularity && ['day','week','month'].includes(s.granularity)) {
+    granularity = s.granularity;
+    document.querySelectorAll('#granularity-toggle button').forEach(b =>
+      b.classList.toggle('active', b.dataset.gran === granularity));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Colour palette
+// ─────────────────────────────────────────────────────────────
+const PALETTE = [
+  '#7c6af7','#56cfb2','#f7a76a','#f76a8a',
+  '#6ab4f7','#d4f76a','#f76ad4','#6af7c4',
+  '#c46af7','#f7c46a','#6af7a7','#f7836a',
+];
+
+function colorFor(i) { return PALETTE[i % PALETTE.length]; }
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+function parseNum(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  return parseFloat(String(v).replace(/[$,]/g, '')) || 0;
+}
+
+function fmt$(n) {
+  if (n >= 1) return '$' + n.toFixed(2);
+  return '$' + n.toFixed(4);
+}
+
+function fmtK(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+  return String(n);
+}
+
+function isoWeek(dateStr) {
+  const d = new Date(dateStr);
+  const day = d.getDay(); // 0=Sun
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Mon
+  const mon = new Date(d.setDate(diff));
+  return mon.toISOString().slice(0, 10);
+}
+
+function isoMonth(dateStr) {
+  return dateStr.slice(0, 7);
+}
+
+function bucketKey(dateStr, gran) {
+  if (gran === 'week') return isoWeek(dateStr);
+  if (gran === 'month') return isoMonth(dateStr);
+  return dateStr.slice(0, 10);
+}
+
+function normaliseDate(raw) {
+  // Accept formats: "2024-01-15", "01/15/2024", "15/01/2024", "Jan 15, 2024"
+  if (!raw) return '';
+  const s = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  // MM/DD/YYYY
+  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m1) return `${m1[3]}-${m1[1].padStart(2,'0')}-${m1[2].padStart(2,'0')}`;
+  // Try native parse
+  const d = new Date(s);
+  if (!isNaN(d)) return d.toISOString().slice(0, 10);
+  return s;
+}
+
+// ─────────────────────────────────────────────────────────────
+// CSV Upload
+// ─────────────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('file-label').textContent = 'Importing…';
+
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    async complete(results) {
+      const parsed = results.data.map(row => ({
+        date:        normaliseDate(row['Date'] || row['date']),
+        user:        String(row['User'] || row['user'] || '').trim(),
+        kind:        String(row['Kind'] || row['kind'] || '').trim(),
+        model:       String(row['Model'] || row['model'] || '').trim(),
+        maxMode:     String(row['Max Mode'] || row['max_mode'] || '').trim(),
+        inputCache:  parseNum(row['Input (w/ Cache Write)']),
+        inputNoCache:parseNum(row['Input (w/o Cache Write)']),
+        cacheRead:   parseNum(row['Cache Read']),
+        output:      parseNum(row['Output Tokens']),
+        total:       parseNum(row['Total Tokens']),
+        cost:        parseNum(row['Cost']),
+      })).filter(r => r.date);
+
+      try {
+        const added = await mergeRowsIntoDB(parsed);
+        rawData = await loadAllFromDB();
+        setStorageLabel(rawData.length);
+        document.getElementById('file-label').textContent =
+          `+${added} new rows (${rawData.length.toLocaleString()} total)`;
+      } catch (err) {
+        // IndexedDB unavailable — fall back to in-memory only
+        console.warn('IndexedDB unavailable, using in-memory data:', err);
+        rawData = parsed;
+        document.getElementById('file-label').textContent = file.name;
+      }
+
+      // Reset file input so the same file can be re-imported
+      e.target.value = '';
+
+      hasUsers = rawData.some(r => r.user !== '');
+      restoreSettings();
+      populateSlicers(); // Always set dates from dataset after restoring other settings
+      updateSlicerOptions();
+      applyFilters();
+    },
+    error(err) {
+      alert('Failed to parse CSV: ' + err.message);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Slicer population
+// ─────────────────────────────────────────────────────────────
+function populateSlicers() {
+  const allDates = rawData.map(r => r.date).filter(Boolean).sort();
+  document.getElementById('f-date-from').value = allDates[0] || '';
+  document.getElementById('f-date-to').value   = allDates[allDates.length - 1] || '';
+
+  document.getElementById('filter-user-group').style.display = hasUsers ? '' : 'none';
+
+  fillMsDropdown('ms-user',  [...new Set(rawData.map(r => r.user).filter(Boolean))].sort());
+  fillMsDropdown('ms-kind',  [...new Set(rawData.map(r => r.kind).filter(Boolean))].sort());
+  fillMsDropdown('ms-model', [...new Set(rawData.map(r => r.model).filter(Boolean))].sort());
+}
+
+// ─────────────────────────────────────────────────────────────
+// Custom multi-select dropdown helpers
+// ─────────────────────────────────────────────────────────────
+function getMsValues(wrapperId) {
+  return Array.from(
+    document.querySelectorAll(`#${wrapperId} .ms-dropdown input[type="checkbox"]:checked`)
+  ).map(cb => cb.value);
+}
+
+function updateMsTrigger(wrapperId) {
+  const wrap        = document.getElementById(wrapperId);
+  const placeholder = wrap.dataset.placeholder;
+  const checked     = getMsValues(wrapperId);
+  const valueEl     = wrap.querySelector('.ms-value');
+  const badgeEl     = wrap.querySelector('.ms-badge');
+
+  if (checked.length === 0) {
+    valueEl.textContent  = placeholder;
+    badgeEl.style.display = 'none';
+  } else if (checked.length === 1) {
+    valueEl.textContent  = checked[0];
+    badgeEl.style.display = 'none';
+  } else {
+    valueEl.textContent   = placeholder;
+    badgeEl.textContent   = checked.length;
+    badgeEl.style.display = 'inline';
+  }
+}
+
+function fillMsDropdown(wrapperId, values) {
+  const wrap = document.getElementById(wrapperId);
+
+  // Build trigger button if not yet created
+  if (!wrap.querySelector('.ms-trigger')) {
+    const placeholder = wrap.dataset.placeholder;
+    wrap.innerHTML = `
+      <button type="button" class="ms-trigger" aria-haspopup="listbox">
+        <span class="ms-value">${placeholder}</span>
+        <span class="ms-badge" style="display:none"></span>
+        <svg class="ms-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="2 4 6 8 10 4"/>
+        </svg>
+      </button>
+      <div class="ms-dropdown">
+        <input class="ms-search" type="text" placeholder="Search…" autocomplete="off" />
+        <div class="ms-no-results">No matches</div>
+      </div>`;
+
+    wrap.querySelector('.ms-trigger').addEventListener('click', e => {
+      e.stopPropagation();
+      document.querySelectorAll('.ms-wrap.open').forEach(w => { if (w !== wrap) w.classList.remove('open'); });
+      const opening = !wrap.classList.contains('open');
+      wrap.classList.toggle('open');
+      if (opening) {
+        // Focus search and clear it whenever dropdown opens
+        const search = wrap.querySelector('.ms-search');
+        search.value = '';
+        filterMsItems(wrap, '');
+        search.focus();
+      }
+    });
+
+    // Wire search input — filter visible items, stop click bubbling
+    const searchEl = wrap.querySelector('.ms-search');
+    searchEl.addEventListener('click', e => e.stopPropagation());
+    searchEl.addEventListener('input', () => filterMsItems(wrap, searchEl.value));
+  }
+
+  // Rebuild checkbox list (preserve existing selections, keep search + no-results nodes)
+  const prev  = new Set(getMsValues(wrapperId));
+  const panel = wrap.querySelector('.ms-dropdown');
+
+  // Remove old ms-item rows only (leave search input and no-results div intact)
+  panel.querySelectorAll('.ms-item').forEach(el => el.remove());
+
+  values.forEach(v => {
+    const id  = `cb-${wrapperId}-${v.replace(/[^\w]/g, '_')}`;
+    const row = document.createElement('div');
+    row.className = 'ms-item';
+    row.innerHTML = `<input type="checkbox" id="${id}" value="${v}"${prev.has(v) ? ' checked' : ''}>
+                     <label for="${id}">${v}</label>`;
+    row.querySelector('input').addEventListener('change', () => {
+      updateMsTrigger(wrapperId);
+      updateSlicerOptions();
+      applyFilters();
+    });
+    panel.appendChild(row);
+  });
+
+  // Re-apply any active search term so newly added items are filtered correctly
+  const searchEl = panel.querySelector('.ms-search');
+  if (searchEl) filterMsItems(wrap, searchEl.value);
+
+  updateMsTrigger(wrapperId);
+}
+
+function filterMsItems(wrap, term) {
+  const q     = term.trim().toLowerCase();
+  const items = wrap.querySelectorAll('.ms-item');
+  let visible = 0;
+  items.forEach(item => {
+    const label = item.querySelector('label').textContent.toLowerCase();
+    const show  = !q || label.includes(q);
+    item.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  wrap.querySelector('.ms-no-results').style.display = visible === 0 ? 'block' : 'none';
+}
+
+// Close dropdowns when clicking outside (and clear their search terms)
+document.addEventListener('click', () => {
+  document.querySelectorAll('.ms-wrap.open').forEach(w => {
+    w.classList.remove('open');
+    const s = w.querySelector('.ms-search');
+    if (s) { s.value = ''; filterMsItems(w, ''); }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Cascading slicer options
+// ─────────────────────────────────────────────────────────────
+function updateSlicerOptions() {
+  const from   = document.getElementById('f-date-from').value;
+  const to     = document.getElementById('f-date-to').value;
+  const users  = getMsValues('ms-user');
+  const kinds  = getMsValues('ms-kind');
+  const models = getMsValues('ms-model');
+
+  const dateOk = r => (!from || r.date >= from) && (!to || r.date <= to);
+
+  // Each slicer's options = rawData filtered by date + the OTHER two slicers
+  const forUser  = rawData.filter(r => dateOk(r)
+    && (!kinds.length  || kinds.includes(r.kind))
+    && (!models.length || models.includes(r.model)));
+
+  const forKind  = rawData.filter(r => dateOk(r)
+    && (!users.length  || users.includes(r.user))
+    && (!models.length || models.includes(r.model)));
+
+  const forModel = rawData.filter(r => dateOk(r)
+    && (!users.length  || users.includes(r.user))
+    && (!kinds.length  || kinds.includes(r.kind)));
+
+  fillMsDropdown('ms-user',  [...new Set(forUser.map(r => r.user).filter(Boolean))].sort());
+  fillMsDropdown('ms-kind',  [...new Set(forKind.map(r => r.kind).filter(Boolean))].sort());
+  fillMsDropdown('ms-model', [...new Set(forModel.map(r => r.model).filter(Boolean))].sort());
+}
+
+// ─────────────────────────────────────────────────────────────
+// Filter logic
+// ─────────────────────────────────────────────────────────────
+function applyFilters() {
+  const from   = document.getElementById('f-date-from').value;
+  const to     = document.getElementById('f-date-to').value;
+  const users  = getMsValues('ms-user');
+  const kinds  = getMsValues('ms-kind');
+  const models = getMsValues('ms-model');
+
+  filteredData = rawData.filter(r => {
+    if (from           && r.date < from)             return false;
+    if (to             && r.date > to)               return false;
+    if (users.length   && !users.includes(r.user))   return false;
+    if (kinds.length   && !kinds.includes(r.kind))   return false;
+    if (models.length  && !models.includes(r.model)) return false;
+    return true;
+  });
+
+  saveSettings();
+  renderAll();
+}
+
+document.getElementById('f-date-from').addEventListener('change', () => { updateSlicerOptions(); applyFilters(); });
+document.getElementById('f-date-to').addEventListener('change',   () => { updateSlicerOptions(); applyFilters(); });
+
+document.getElementById('f-reset').addEventListener('click', () => {
+  // Save current metric and granularity before clearing
+  const savedMetric = metric;
+  const savedGranularity = granularity;
+  
+  clearSettings();
+  
+  // Clear all checkbox selections before repopulating
+  ['ms-user', 'ms-kind', 'ms-model'].forEach(id => {
+    document.querySelectorAll(`#${id} input[type="checkbox"]`).forEach(cb => { cb.checked = false; });
+    updateMsTrigger(id);
+  });
+  // Reset dates and repopulate all options from full rawData
+  const allDates = rawData.map(r => r.date).filter(Boolean).sort();
+  document.getElementById('f-date-from').value = allDates[0] || '';
+  document.getElementById('f-date-to').value   = allDates[allDates.length - 1] || '';
+  populateSlicers();
+  
+  // Restore metric and granularity (exempt from reset)
+  metric = savedMetric;
+  granularity = savedGranularity;
+  document.querySelectorAll('#metric-toggle button').forEach(b =>
+    b.classList.toggle('active', b.dataset.metric === metric));
+  document.querySelectorAll('#granularity-toggle button').forEach(b =>
+    b.classList.toggle('active', b.dataset.gran === granularity));
+  
+  // Save settings with preserved metric/granularity
+  saveSettings();
+  applyFilters();
+});
+
+// ─────────────────────────────────────────────────────────────
+// Render orchestrator
+// ─────────────────────────────────────────────────────────────
+function renderAll() {
+  if (!filteredData.length && !rawData.length) return;
+
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'flex';
+
+  // Date range badge reflects filtered range
+  const dates = filteredData.map(r => r.date).filter(Boolean).sort();
+  const badge = document.getElementById('date-range-badge');
+  if (dates.length) {
+    badge.textContent = dates[0] + ' → ' + dates[dates.length - 1];
+    badge.style.display = 'inline-block';
+  }
+
+  renderKPIs();
+  renderCostChart();
+  renderModelChart();
+  renderTable();
+}
+
+// ─────────────────────────────────────────────────────────────
+// KPI Cards
+// ─────────────────────────────────────────────────────────────
+function renderKPIs() {
+  const totalCost     = filteredData.reduce((s, r) => s + r.cost, 0);
+  const totalRequests = filteredData.length;
+  const totalTokens   = filteredData.reduce((s, r) => s + r.total, 0);
+  const totalOutput   = filteredData.reduce((s, r) => s + r.output, 0);
+
+  const avgCostPerReq = totalRequests ? (totalCost / totalRequests) : 0;
+  const avgTokensPerReq = totalRequests ? (totalTokens / totalRequests) : 0;
+  const outputPct = totalTokens ? ((totalOutput / totalTokens) * 100).toFixed(1) : '0';
+
+  let usersLabel = '';
+  if (hasUsers) {
+    const users = new Set(filteredData.map(r => r.user).filter(Boolean));
+    usersLabel = users.size > 1 ? ` · across ${users.size} users` : (users.size === 1 ? ` · ${[...users][0]}` : '');
+  }
+
+  document.getElementById('kpi-cost').textContent      = fmt$(totalCost);
+  document.getElementById('kpi-cost-sub').textContent  = `avg ${fmt$(avgCostPerReq)} per request${usersLabel}`;
+
+  document.getElementById('kpi-requests').textContent      = totalRequests.toLocaleString();
+  document.getElementById('kpi-requests-sub').textContent  = `${fmtK(Math.round(avgTokensPerReq))} avg tokens/request`;
+
+  document.getElementById('kpi-tokens').textContent      = fmtK(totalTokens);
+  document.getElementById('kpi-tokens-sub').textContent  = `total across all requests`;
+
+  document.getElementById('kpi-output').textContent      = fmtK(totalOutput);
+  document.getElementById('kpi-output-sub').textContent  = `${outputPct}% of total tokens`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Cost Over Time chart
+// ─────────────────────────────────────────────────────────────
+const METRIC_CONFIG = {
+  cost:     { label: 'Cost Over Time',     color: '#7c6af7', bg: 'rgba(124,106,247,0.12)', fmt: v => fmt$(v) },
+  requests: { label: 'Requests Over Time', color: '#56cfb2', bg: 'rgba(86,207,178,0.12)',  fmt: v => Math.round(v).toLocaleString() },
+  tokens:   { label: 'Tokens Over Time',   color: '#f7a76a', bg: 'rgba(247,167,106,0.12)', fmt: v => fmtK(v) },
+};
+
+function buildMetricByBucket(gran, m) {
+  const map = {};
+  filteredData.forEach(r => {
+    const key = bucketKey(r.date, gran);
+    if (!map[key]) map[key] = 0;
+    if (m === 'cost')     map[key] += r.cost;
+    if (m === 'requests') map[key] += 1;
+    if (m === 'tokens')   map[key] += r.total;
+  });
+  return Object.keys(map).sort().map(k => ({ x: k, y: map[k] }));
+}
+
+function buildTokenComponentsByBucket(gran) {
+  const components = {
+    'Input (w/ Cache Write)': {},
+    'Input (w/o Cache Write)': {},
+    'Cache Read': {},
+    'Output': {}
+  };
+  
+  filteredData.forEach(r => {
+    const key = bucketKey(r.date, gran);
+    if (!components['Input (w/ Cache Write)'][key]) {
+      components['Input (w/ Cache Write)'][key] = 0;
+      components['Input (w/o Cache Write)'][key] = 0;
+      components['Cache Read'][key] = 0;
+      components['Output'][key] = 0;
+    }
+    components['Input (w/ Cache Write)'][key] += r.inputCache;
+    components['Input (w/o Cache Write)'][key] += r.inputNoCache;
+    components['Cache Read'][key] += r.cacheRead;
+    components['Output'][key] += r.output;
+  });
+  
+  // Calculate totals for each component to sort by smallest first
+  const totals = {};
+  Object.keys(components).forEach(name => {
+    totals[name] = Object.values(components[name]).reduce((sum, val) => sum + val, 0);
+  });
+  
+  // Sort components by total (largest first for bottom, smallest last for top)
+  // In stacked charts, first dataset is bottom, last is top
+  const sortedComponents = Object.keys(components).sort((a, b) => totals[b] - totals[a]);
+  
+  // Build datasets
+  const allKeys = Object.keys(components[sortedComponents[0]]).sort();
+  const datasets = sortedComponents.map((name, idx) => ({
+    label: name,
+    data: allKeys.map(k => ({ x: k, y: components[name][k] || 0 })),
+    borderColor: PALETTE[idx % PALETTE.length],
+    backgroundColor: PALETTE[idx % PALETTE.length] + '80',
+    borderWidth: 1.5,
+    pointRadius: allKeys.length > 60 ? 0 : 0,
+    fill: true,
+    tension: 0.3,
+    stack: 'tokens',
+  }));
+  
+  return datasets;
+}
+
+function renderCostChart() {
+  const cfg = METRIC_CONFIG[metric];
+  const ctx = document.getElementById('cost-chart').getContext('2d');
+
+  document.getElementById('time-chart-title').textContent = cfg.label;
+
+  if (costChart) costChart.destroy();
+
+  let chartData, chartOptions;
+
+  if (metric === 'tokens') {
+    // For tokens, show component breakdown
+    const datasets = buildTokenComponentsByBucket(granularity);
+    chartData = { datasets };
+    
+    chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { 
+          display: true,
+          position: 'top',
+          onClick: (e, legendItem, legend) => {
+            const index = legendItem.datasetIndex;
+            const chart = legend.chart;
+            const meta = chart.getDatasetMeta(index);
+            
+            // Toggle visibility
+            meta.hidden = !meta.hidden;
+            chart.update();
+            
+            // Update hidden state tracking
+            const label = datasets[index].label;
+            if (meta.hidden) {
+              hiddenTokenComponents.add(label);
+            } else {
+              hiddenTokenComponents.delete(label);
+            }
+          },
+          labels: {
+            color: '#8890b0',
+            font: { size: 11 },
+            usePointStyle: true,
+            padding: 12,
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const label = ctx.dataset.label || '';
+              const value = ctx.parsed.y;
+              return `${label}: ${fmtK(value)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'category',
+          ticks: { color: '#8890b0', maxTicksLimit: 12, font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+        },
+        y: {
+          stacked: true,
+          ticks: { color: '#8890b0', font: { size: 11 }, callback: v => fmtK(v) },
+          grid: { color: 'rgba(255,255,255,0.06)' },
+        }
+      }
+    };
+  } else {
+    // For cost and requests, show single line with smooth styling
+    const points = buildMetricByBucket(granularity, metric);
+    chartData = {
+      datasets: [{
+        label: cfg.label,
+        data: points,
+        borderColor: cfg.color,
+        backgroundColor: cfg.bg,
+        borderWidth: 1.5,
+        pointBackgroundColor: cfg.color,
+        pointRadius: 0, // No points for smoother look
+        fill: true,
+        tension: 0.3,
+      }]
+    };
+    
+    chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ' + cfg.fmt(ctx.parsed.y)
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'category',
+          ticks: { color: '#8890b0', maxTicksLimit: 12, font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+        },
+        y: {
+          ticks: { color: '#8890b0', font: { size: 11 }, callback: v => cfg.fmt(v) },
+          grid: { color: 'rgba(255,255,255,0.06)' },
+        }
+      }
+    };
+  }
+
+  costChart = new Chart(ctx, {
+    type: 'line',
+    data: chartData,
+    options: chartOptions
+  });
+  
+  // After chart creation, apply hidden state for tokens chart
+  if (metric === 'tokens' && hiddenTokenComponents.size > 0) {
+    costChart.data.datasets.forEach((dataset, index) => {
+      if (hiddenTokenComponents.has(dataset.label)) {
+        const meta = costChart.getDatasetMeta(index);
+        meta.hidden = true;
+      }
+    });
+    costChart.update();
+  }
+}
+
+// Metric toggle
+document.getElementById('metric-toggle').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  metric = btn.dataset.metric;
+  document.querySelectorAll('#metric-toggle button').forEach(b => b.classList.toggle('active', b === btn));
+  saveSettings();
+  if (rawData.length) { renderCostChart(); renderModelChart(); }
+});
+
+// Granularity toggle
+document.getElementById('granularity-toggle').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  granularity = btn.dataset.gran;
+  document.querySelectorAll('#granularity-toggle button').forEach(b => b.classList.toggle('active', b === btn));
+  saveSettings();
+  if (rawData.length) renderCostChart();
+});
+
+// ─────────────────────────────────────────────────────────────
+// Model Breakdown chart
+// ─────────────────────────────────────────────────────────────
+function renderModelChart() {
+  const cfg = METRIC_CONFIG[metric];
+  const TOP_N = 14;
+
+  // Accumulate selected metric per model (ungrouped)
+  const map = {};
+  filteredData.forEach(r => {
+    const m = r.model || 'Unknown';
+    const val = metric === 'cost' ? r.cost : metric === 'requests' ? 1 : r.total;
+    map[m] = (map[m] || 0) + val;
+  });
+
+  // Sort descending by the active metric
+  const allSorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+
+  // Top 14 shown individually; the rest collapse into "Other"
+  const top = allSorted.slice(0, TOP_N);
+  const rest = allSorted.slice(TOP_N);
+  const otherTotal = rest.reduce((sum, [, v]) => sum + v, 0);
+
+  const sorted = otherTotal > 0 ? [...top, ['Other', otherTotal]] : top;
+  const labels = sorted.map(([k]) => k);
+  const values = sorted.map(([, v]) => v);
+
+  // Update chart title
+  const titleMap = { cost: 'Cost by Model', requests: 'Requests by Model', tokens: 'Tokens by Model' };
+  document.getElementById('model-chart-title').textContent = titleMap[metric];
+
+  // Assign colours; "Other" gets a fixed muted grey
+  modelColorMap = {};
+  labels.forEach((label, i) => {
+    modelColorMap[label] = label === 'Other' ? '#55607a' : colorFor(i);
+  });
+
+  const ctx = document.getElementById('model-chart').getContext('2d');
+  if (modelChart) modelChart.destroy();
+
+  modelChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: cfg.label.replace(' Over Time', ''),
+        data: values,
+        backgroundColor: labels.map(label => modelColorMap[label]),
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ' + cfg.fmt(ctx.parsed.y)
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#e8eaf0', font: { size: 11 }, maxRotation: 35, minRotation: 20 },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+        },
+        y: {
+          ticks: { color: '#8890b0', font: { size: 11 }, callback: v => cfg.fmt(v) },
+          grid: { color: 'rgba(255,255,255,0.06)' },
+        }
+      }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tabulator data table
+// ─────────────────────────────────────────────────────────────
+function renderTable() {
+  const tableSource = filteredData;
+
+  const tableData = tableSource.map(r => ({
+    date:        r.date,
+    user:        r.user,
+    kind:        r.kind,
+    model:       r.model,
+    maxMode:     r.maxMode,
+    inputCache:  r.inputCache,
+    inputNoCache:r.inputNoCache,
+    cacheRead:   r.cacheRead,
+    output:      r.output,
+    total:       r.total,
+    cost:        r.cost,
+  }));
+
+  // Update section header summary
+  const totalCost = tableSource.reduce((s, r) => s + r.cost, 0);
+  document.getElementById('table-summary').textContent =
+    `— ${fmt$(totalCost)} total · ${tableSource.length.toLocaleString()} rows`;
+  
+  // Show/hide export button based on data availability
+  const exportBtn = document.getElementById('export-btn');
+  if (tableSource.length > 0) {
+    exportBtn.style.display = 'inline-flex';
+  } else {
+    exportBtn.style.display = 'none';
+  }
+
+  // Recreate the table if the hasUsers state changed (different CSV structure)
+  if (table && tableHasUsers !== hasUsers) {
+    table.destroy();
+    table = null;
+  }
+
+  if (table) {
+    table.setData(tableData);
+    return;
+  }
+
+  tableHasUsers = hasUsers;
+
+  const userColumn = hasUsers
+    ? [{ title: 'User', field: 'user', sorter: 'string', width: 120 }]
+    : [];
+
+  table = new Tabulator('#data-table', {
+    data: tableData,
+    layout: 'fitColumns',
+    pagination: 'local',
+    paginationSize: 25,
+    paginationSizeSelector: [10, 25, 50, 100],
+    height: '520px',
+    initialSort: [{ column: 'date', dir: 'desc' }],
+    columns: [
+      { title: 'Date',        field: 'date',         sorter: 'string', width: 105 },
+      ...userColumn,
+      { title: 'Kind',        field: 'kind',         sorter: 'string', width: 90  },
+      { title: 'Model',       field: 'model',        sorter: 'string', minWidth: 140 },
+      { title: 'Max Mode',    field: 'maxMode',      sorter: 'string', width: 100 },
+      {
+        title: 'Input (Cache)',
+        field: 'inputCache',
+        sorter: 'number',
+        width: 120,
+        hozAlign: 'right',
+        formatter: cell => fmtK(cell.getValue()),
+      },
+      {
+        title: 'Input (No Cache)',
+        field: 'inputNoCache',
+        sorter: 'number',
+        width: 130,
+        hozAlign: 'right',
+        formatter: cell => fmtK(cell.getValue()),
+      },
+      {
+        title: 'Cache Read',
+        field: 'cacheRead',
+        sorter: 'number',
+        width: 110,
+        hozAlign: 'right',
+        formatter: cell => fmtK(cell.getValue()),
+      },
+      {
+        title: 'Output',
+        field: 'output',
+        sorter: 'number',
+        width: 90,
+        hozAlign: 'right',
+        formatter: cell => fmtK(cell.getValue()),
+      },
+      {
+        title: 'Total Tokens',
+        field: 'total',
+        sorter: 'number',
+        width: 110,
+        hozAlign: 'right',
+        formatter: cell => fmtK(cell.getValue()),
+      },
+      {
+        title: 'Cost',
+        field: 'cost',
+        sorter: 'number',
+        width: 95,
+        hozAlign: 'right',
+        formatter: cell => fmt$(cell.getValue()),
+      },
+    ],
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Export functionality
+// ─────────────────────────────────────────────────────────────
+document.getElementById('export-btn').addEventListener('click', () => {
+  if (!filteredData.length) return;
+  
+  // Convert filteredData to CSV format matching original structure
+  const headers = hasUsers 
+    ? ['Date', 'User', 'Kind', 'Model', 'Max Mode', 'Input (w/ Cache Write)', 'Input (w/o Cache Write)', 'Cache Read', 'Output Tokens', 'Total Tokens', 'Cost']
+    : ['Date', 'Kind', 'Model', 'Max Mode', 'Input (w/ Cache Write)', 'Input (w/o Cache Write)', 'Cache Read', 'Output Tokens', 'Total Tokens', 'Cost'];
+  
+  const rows = filteredData.map(r => {
+    const base = [
+      r.date,
+      r.kind,
+      r.model,
+      r.maxMode,
+      r.inputCache,
+      r.inputNoCache,
+      r.cacheRead,
+      r.output,
+      r.total,
+      r.cost.toFixed(6)
+    ];
+    return hasUsers ? [r.date, r.user, ...base.slice(1)] : base;
+  });
+  
+  // Use Papa Parse to convert to CSV
+  const csv = Papa.unparse({
+    fields: headers,
+    data: rows
+  });
+  
+  // Create download link
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  
+  // Generate filename with date range
+  const dates = filteredData.map(r => r.date).filter(Boolean).sort();
+  const dateStr = dates.length 
+    ? `_${dates[0]}_to_${dates[dates.length - 1]}`
+    : '';
+  link.setAttribute('download', `cursor-usage${dateStr}.csv`);
+  
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
