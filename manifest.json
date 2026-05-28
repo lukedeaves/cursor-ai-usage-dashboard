@@ -1,0 +1,17 @@
+{
+  "name": "Cursor AI Usage Dashboard",
+  "short_name": "Cursor Usage",
+  "description": "Visualize Cursor AI usage, spending, and token consumption",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0c12",
+  "theme_color": "#7c6af7",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%237c6af7' width='512' height='512' rx='96'/><text x='256' y='340' font-size='240' text-anchor='middle' fill='white'>📊</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

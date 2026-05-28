@@ -1,152 +1,147 @@
 # Cursor AI Usage Dashboard
 
-A single-file web application for visualizing Cursor AI usage data, spending, and token consumption. Upload your CSV export to generate interactive charts, filter by date range/users/models, and analyze your AI usage patterns.
+A privacy-first web application for visualizing Cursor AI usage data, spending, and token consumption. Upload your CSV export to generate interactive charts, filter by date range/users/models, and analyze your AI usage patterns — all in your browser.
+
+**Live demo:** Enable GitHub Pages in repo Settings → Pages (workflow included), or run locally with `make serve`.
 
 ## Features
 
-- **CSV Import/Export**: Upload your Cursor usage CSV files and export filtered data
-- **Interactive Charts**: 
-  - Time series charts showing cost, requests, or tokens over time
-  - Model breakdown bar charts
-  - Token component breakdown (when viewing tokens metric)
-  - Adjustable granularity (day/week/month)
-- **KPI Cards**: Quick overview of total cost, requests, tokens, and output tokens
-- **Advanced Filtering**: 
-  - Date range filtering
-  - Multi-select filters for users, kinds, and models
-  - Cascading filter options (filters update based on other selections)
-  - Metric toggle (Requests/Cost/Tokens)
-- **Data Persistence**: Automatically stores data in browser IndexedDB for persistence across sessions
-- **Responsive Design**: Modern dark theme UI that works on desktop and mobile
-- **Data Table**: Sortable, paginated table with all raw data that can be exported in filtered state
-- **Flexible CSV Support**: Works with CSVs that include or exclude the User column
+- **CSV Import/Export** — Upload Cursor usage CSV files; export filtered data
+- **Try sample data** — One-click demo with included example CSV
+- **Drag & drop** — Drop CSV files anywhere on the page
+- **Interactive charts** — Time series (cost/requests/tokens), model breakdown, token component stacks
+- **KPI cards** — Totals with sparklines, count-up animation, and period-over-period deltas
+- **Advanced filtering** — Date range, period presets, multi-select users/kinds/models, cascading options
+- **Budget line** — Optional monthly budget overlay on the cost chart
+- **URL state** — Shareable links preserve filter settings
+- **Light/dark theme** — Manual toggle with system preference default
+- **Offline-ready** — Vendored libraries + service worker caching
+- **PWA** — Installable as a standalone app
 
 ## Screenshots
 
 ### Empty State
 ![Empty State](screenshots/empty_state.png)
 
-The dashboard starts with a clean interface, prompting you to upload your CSV file.
-
 ### Dashboard with Data Loaded
 ![Loaded State](screenshots/loaded_state.png)
 
-Once data is loaded, you'll see:
-- KPI cards showing totals and averages
-- Filter bar with date range and multi-select dropdowns
-- Interactive time series chart
-- Model breakdown chart
-- Full data table with pagination
-
 ## Quick Start
 
-1. **Download or clone this repository**
-2. **Open `index.html` in your web browser** (no server required!)
-3. **Click "Import CSV"** and select your Cursor usage export file
-4. **Explore your data** using the filters and charts
+### Option 1 — Open directly (simplest)
 
-That's it! The dashboard is completely self-contained and runs entirely in your browser.
+1. Clone or download this repository
+2. Open `index.html` in a modern browser
+
+> For full features (ES modules, service worker), use a local server (Option 2).
+
+### Option 2 — Local server (recommended)
+
+```bash
+# Python (zero install on most systems)
+make serve
+# → http://localhost:8080
+
+# Or with Node
+make start
+# → http://localhost:8080
+
+# Or Docker
+make docker
+# → http://localhost:8080
+```
+
+### Option 3 — Try without your own data
+
+1. Start the server
+2. Click **Try sample data** on the welcome screen
 
 ## Usage Guide
 
-### Uploading Data
+### Getting your CSV
 
-1. Export your usage data from Cursor (Settings → Usage → Export)
-2. Click the "Import CSV" button in the dashboard header
-3. Select your CSV file
-4. The dashboard will automatically parse and display your data
+1. In Cursor: **Settings → Usage → Export**
+2. Click **Import CSV** or drag the file onto the page
 
-### Filtering Data
+### Filtering
 
-- **Date Range**: Use the "From" and "To" date pickers to filter by date
-- **User Filter**: Select specific users (if your CSV includes user data)
-- **Kind Filter**: Filter by request kind (e.g., "Included", "Errored, No Charge")
-- **Model Filter**: Filter by AI model (e.g., "claude-4.6-sonnet-medium-thinking", "composer-1")
-- **Reset Button**: Clear all filters and return to full dataset
+- **Period presets** — Last 7 days, Last 30 days, This month, All time
+- **Date range** — Custom From/To pickers
+- **Multi-select** — User, Kind, Model (with search)
+- **Reset filters** — Clears filters but keeps metric/granularity
+- **Reset all** — Clears everything including metric and granularity
 
-Filters cascade automatically - selecting a date range will update available options in other filters.
+### Metrics & charts
 
-### Viewing Metrics
+- Toggle **Requests / Cost / Tokens** in the filter bar, or click a KPI card
+- Adjust time granularity: **Day / Week / Month**
+- Set a **Budget $** value to show a budget line on the cost chart
+- Click **Save PNG** to export the time-series chart
 
-Toggle between three metrics using the buttons in the filter bar:
-- **Requests**: Count of API requests over time
-- **Cost**: Total cost in USD over time
-- **Tokens**: Token consumption over time (shows component breakdown)
+### Export & privacy
 
-### Time Granularity
-
-For time series charts, adjust granularity:
-- **Day**: Daily aggregation
-- **Week**: Weekly aggregation (ISO weeks)
-- **Month**: Monthly aggregation
-
-### Exporting Filtered Data
-
-1. Apply your desired filters
-2. Click the "Export CSV" button above the data table
-3. A CSV file will download with your filtered data
-
-### Clearing Stored Data
-
-If you've stored data in the browser, you can clear it:
-1. Click "Clear stored data" in the header
-2. Confirm the action
-3. All stored data will be removed
+- **Export CSV** — Downloads currently filtered rows
+- **Clear stored data** — Wipes IndexedDB (with confirmation)
+- All processing is client-side; data never leaves your browser
 
 ## CSV Format
 
-The dashboard expects CSV files exported from Cursor with the following columns:
+### Required columns
 
-### Required Columns
-- `Date` - Timestamp of the request
-- `Kind` - Request type (e.g., "Included", "Errored, No Charge")
-- `Model` - AI model used (e.g., "claude-4.6-sonnet-medium-thinking")
-- `Max Mode` - Whether max mode was used
-- `Input (w/ Cache Write)` - Input tokens with cache write
-- `Input (w/o Cache Write)` - Input tokens without cache write
-- `Cache Read` - Tokens read from cache
-- `Output Tokens` - Output tokens generated
-- `Total Tokens` - Total tokens used
-- `Cost` - Cost in USD
+- `Date`, `Kind`, `Model`, `Max Mode`
+- `Input (w/ Cache Write)`, `Input (w/o Cache Write)`, `Cache Read`
+- `Output Tokens`, `Total Tokens`, `Cost`
 
-### Optional Columns
-- `User` - User identifier (if your CSV includes user data, the dashboard will show user filters)
+### Optional
 
-See `examples/sample_data.csv` for an example CSV file with the User column included.
+- `User` — Enables user filter when present
 
-The dashboard automatically detects whether your CSV includes the User column and adapts accordingly.
+See [`examples/sample_data.csv`](examples/sample_data.csv) for an example.
 
-## Technical Details
+## Development
 
-### Libraries Used
+```bash
+npm install          # Install dev dependencies
+npm test             # Run Vitest unit tests
+npm run vendor       # Verify vendored libraries
+npm run screenshots  # Regenerate README screenshots (requires Playwright)
+```
 
-This dashboard uses the following open-source libraries (loaded via CDN):
+### Project structure
 
-- **[Chart.js](https://www.chartjs.org/)** (v4.4.3) - For interactive charts
-- **[Chart.js Date Adapter](https://github.com/chartjs/chartjs-adapter-date-fns)** (v3.0.0) - For date handling in charts
-- **[Tabulator](https://tabulator.info/)** (v6.2.1) - For the data table
-- **[Papa Parse](https://www.papaparse.com/)** (v5.4.1) - For CSV parsing and export
+```
+├── index.html          # App shell
+├── css/                # Design tokens, layout, components
+├── js/                 # ES modules (app, charts, filters, csv, db, …)
+├── vendor/             # Chart.js, Tabulator, Papa Parse (offline)
+├── tests/              # Vitest tests
+├── examples/           # Sample CSV data
+├── sw.js               # Service worker
+├── manifest.json       # PWA manifest
+├── Makefile            # serve, test, docker shortcuts
+└── docker-compose.yml  # nginx static server
+```
 
-### Data Storage
+See [`DEPENDENCIES.md`](DEPENDENCIES.md) for library versions and update instructions.
 
-- **IndexedDB**: Data is stored locally in your browser using IndexedDB
-- **localStorage**: Filter preferences and settings are saved in localStorage
-- **No Server**: All processing happens client-side - your data never leaves your browser
+## Browser Compatibility
 
-### Browser Compatibility
+Requires a modern browser with:
 
-Requires a modern browser with support for:
-- ES6 JavaScript features
-- IndexedDB API
-- Canvas API (for charts)
+- ES modules
+- IndexedDB
+- Canvas (Chart.js)
 
-Tested and works in:
-- Chromium-based Browsers (latest)
+Tested in Chromium, Firefox, and Safari (latest).
+
+## Deploy to GitHub Pages
+
+Push to `main` — the included workflow (`.github/workflows/pages.yml`) deploys the static site automatically once GitHub Pages is enabled for the repository.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+Contributions welcome! Run `npm test` before submitting a PR.
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+GNU General Public License v3.0 — see [LICENSE](LICENSE).

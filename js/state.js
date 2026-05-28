@@ -1,0 +1,16 @@
+export const state = {
+  rawData: [],
+  filteredData: [],
+  costChart: null,
+  modelChart: null,
+  table: null,
+  granularity: 'day',
+  metric: 'requests',
+  modelColorMap: {},
+  hasUsers: false,
+  tableHasUsers: null,
+  hiddenTokenComponents: new Set(),
+  budgetMonthly: null,
+  lastImportAt: null,
+  periodPreset: 'all',
+};
