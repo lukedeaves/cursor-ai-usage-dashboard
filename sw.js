@@ -11,6 +11,7 @@ const ASSETS = [
   './js/db.js',
   './js/settings.js',
   './js/csv-fields.js',
+  './js/csv.js',
   './js/ui.js',
   './js/filters.js',
   './js/render.js',
