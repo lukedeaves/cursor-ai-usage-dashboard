@@ -8,6 +8,7 @@ export const state = {
   metric: 'requests',
   modelColorMap: {},
   hasUsers: false,
+  hasTeamFields: false,
   tableHasUsers: null,
   hiddenTokenComponents: new Set(),
   budgetMonthly: null,

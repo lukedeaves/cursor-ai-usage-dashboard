@@ -42,7 +42,7 @@
     <span id="file-label">No file loaded</span>
     <button type="button" class="icon-btn" id="help-tour-btn" title="Guided tour" aria-label="Start tour">?</button>
     <button type="button" class="icon-btn" id="cmd-hint-btn" title="Command palette (press /)" aria-label="Command palette">⌘</button>
-    <button type="button" class="icon-btn" id="theme-toggle" aria-label="Switch theme">☀️</button>
+    <button type="button" class="icon-btn" id="theme-toggle" aria-label="Switch theme" title="Toggle theme"></button>
     <button type="button" class="clear-btn" id="clear-data-btn" style="display:none">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
         <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
@@ -57,7 +57,7 @@
       </svg>
       Import CSV
     </label>
-    <input type="file" id="file-input" accept=".csv,text/csv" multiple />
+    <input type="file" id="file-input" accept=".csv,.txt,.tsv,text/csv,text/plain" multiple />
     <button type="button" class="btn-secondary btn-sm" id="paste-csv-btn" title="Paste CSV from clipboard">Paste</button>
     <label class="btn-secondary btn-sm" for="file-input-multi" title="Import multiple CSV files">Multi-import</label>
     <input type="file" id="file-input-multi" accept=".csv,text/csv" multiple hidden />
@@ -87,6 +87,7 @@
         Import CSV
       </label>
       <button type="button" class="btn-secondary" id="load-sample-btn">Try sample data</button>
+      <button type="button" class="btn-secondary" id="load-team-sample-btn">Try team sample</button>
       <button type="button" class="btn-secondary" id="paste-csv-btn-empty">Paste from clipboard</button>
       <a class="btn-secondary" href="examples/sample_data.csv" download>Download example CSV</a>
       <span class="kbd-hint">Press <kbd>/</kbd> for commands</span>

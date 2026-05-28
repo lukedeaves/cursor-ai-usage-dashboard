@@ -1,4 +1,4 @@
-const CACHE = 'cursor-usage-v3';
+const CACHE = 'cursor-usage-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -10,7 +10,7 @@ const ASSETS = [
   './js/state.js',
   './js/db.js',
   './js/settings.js',
-  './js/csv.js',
+  './js/csv-fields.js',
   './js/ui.js',
   './js/filters.js',
   './js/render.js',

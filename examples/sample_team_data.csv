@@ -1,0 +1,6 @@
+Date,User,Cloud Agent ID,Automation ID,Kind,Model,Max Mode,Input (w/ Cache Write),Input (w/o Cache Write),Cache Read,Output Tokens,Total Tokens,Cost
+2026-05-20T14:22:01.123Z,alice@team.com,agent-001,,Included,claude-4.6-sonnet-medium-thinking,No,12000,50,450000,2100,464150,0.42
+2026-05-20T14:25:33.456Z,bob@team.com,,auto-77,Included,composer-1,No,0,3200,89000,890,93090,0.08
+2026-05-21T09:10:00.000Z,alice@team.com,agent-002,,Included,gpt-5.4-medium,No,0,45000,1200000,5500,1250500,1.12
+2026-05-21T11:45:22.789Z,bob@team.com,,,Included,claude-4.6-sonnet-medium-thinking,No,8000,10,200000,1500,209510,0.19
+2026-05-22T16:00:00.000Z,alice@team.com,agent-001,,"Errored, No Charge",claude-4.6-sonnet-medium-thinking,No,5000,5,100000,800,105805,-

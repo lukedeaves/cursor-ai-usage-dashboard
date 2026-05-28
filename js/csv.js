@@ -5,12 +5,18 @@ import { saveLastImport } from './settings.js';
 import { showToast } from './ui.js';
 import { validateCsvSchema } from './schema.js';
 import { shouldUseWorker, parseCsvInWorker } from './csv-worker.js';
+import { normalizeCsvText, PAPA_PARSE_OPTIONS } from './csv-fields.js';
 
 let onImportComplete = null;
 export function setImportCallback(fn) { onImportComplete = fn; }
 
-async function ingestParsedRows(parsed, schema, sourceLabel) {
-  if (!parsed.length) throw new Error('No valid rows found in CSV');
+async function ingestParsedRows(parsed, schema, sourceLabel, rawRowCount = 0) {
+  if (!parsed.length) {
+    const hint = rawRowCount > 0
+      ? `${rawRowCount} row(s) found but none had a valid Date. Check the CSV format.`
+      : 'No data rows found in file.';
+    throw new Error(hint);
+  }
 
   if (schema?.message) {
     showToast(schema.message, schema.valid ? 'info' : 'error', 8000);
@@ -36,6 +42,7 @@ async function ingestParsedRows(parsed, schema, sourceLabel) {
   }
 
   state.hasUsers = state.rawData.some(r => r.user !== '');
+  state.hasTeamFields = state.rawData.some(r => r.cloudAgentId || r.automationId);
   saveLastImport();
   showToast(
     `Imported ${sourceLabel}: +${added.toLocaleString()} new · ${skipped.toLocaleString()} duplicates skipped · ${state.rawData.length.toLocaleString()} total`,
@@ -49,20 +56,21 @@ export async function importCsvText(text, sourceLabel = 'CSV') {
   const label = document.getElementById('file-label');
   if (label) label.textContent = `Parsing ${sourceLabel}…`;
 
-  if (shouldUseWorker(text)) {
-    const { rows, schema } = await parseCsvInWorker(text);
-    return ingestParsedRows(rows, schema, sourceLabel);
+  const normalized = normalizeCsvText(text);
+
+  if (shouldUseWorker(normalized)) {
+    const { rows, schema, rowCount } = await parseCsvInWorker(normalized);
+    return ingestParsedRows(rows, schema, sourceLabel, rowCount);
   }
 
   return new Promise((resolve, reject) => {
-    Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
+    Papa.parse(normalized, {
+      ...PAPA_PARSE_OPTIONS,
       async complete(results) {
         try {
           const schema = validateCsvSchema(results.meta?.fields || []);
           const parsed = parseCsvRows(results.data);
-          const result = await ingestParsedRows(parsed, schema, sourceLabel);
+          const result = await ingestParsedRows(parsed, schema, sourceLabel, results.data?.length || 0);
           resolve(result);
         } catch (e) {
           reject(e);
@@ -77,11 +85,11 @@ export async function importCsvText(text, sourceLabel = 'CSV') {
 
 export async function importCsvFile(file) {
   const text = await file.text();
-  return importCsvText(text, file.name);
+  return importCsvText(text, file.name || 'upload');
 }
 
 export async function importMultipleFiles(fileList) {
-  const files = [...fileList].filter(f => f.name.toLowerCase().endsWith('.csv'));
+  const files = [...fileList].filter(isCsvLikeFile);
   if (!files.length) throw new Error('No CSV files selected');
 
   let totalAdded = 0;
@@ -93,6 +101,15 @@ export async function importMultipleFiles(fileList) {
   }
   showToast(`Merged ${files.length} files: +${totalAdded} new rows total`, 'success');
   return { files: files.length, added: totalAdded, skipped: totalSkipped };
+}
+
+export function isCsvLikeFile(file) {
+  if (!file?.name) return true;
+  const n = file.name.toLowerCase();
+  if (n.endsWith('.csv') || n.endsWith('.txt') || n.endsWith('.tsv')) return true;
+  if (!n.includes('.')) return true;
+  const mime = file.type || '';
+  return mime.includes('csv') || mime.includes('text') || mime === 'application/vnd.ms-excel';
 }
 
 export async function importFromClipboard() {
@@ -109,16 +126,30 @@ export async function loadSampleData() {
   return importCsvText(await res.text(), 'sample data');
 }
 
+export async function loadTeamSampleData() {
+  const label = document.getElementById('file-label');
+  if (label) label.textContent = 'Loading team sample…';
+  const res = await fetch('examples/sample_team_data.csv');
+  if (!res.ok) throw new Error('Could not load team sample data');
+  return importCsvText(await res.text(), 'team sample');
+}
+
 export function exportFilteredCsv() {
   if (!state.filteredData.length) return;
 
-  const headers = state.hasUsers
-    ? ['Date', 'User', 'Kind', 'Model', 'Max Mode', 'Input (w/ Cache Write)', 'Input (w/o Cache Write)', 'Cache Read', 'Output Tokens', 'Total Tokens', 'Cost']
-    : ['Date', 'Kind', 'Model', 'Max Mode', 'Input (w/ Cache Write)', 'Input (w/o Cache Write)', 'Cache Read', 'Output Tokens', 'Total Tokens', 'Cost'];
+  const headers = ['Date'];
+  if (state.hasUsers) headers.push('User');
+  if (state.hasTeamFields) {
+    headers.push('Cloud Agent ID', 'Automation ID');
+  }
+  headers.push('Kind', 'Model', 'Max Mode', 'Input (w/ Cache Write)', 'Input (w/o Cache Write)', 'Cache Read', 'Output Tokens', 'Total Tokens', 'Cost');
 
   const rows = state.filteredData.map(r => {
-    const base = [r.date, r.kind, r.model, r.maxMode, r.inputCache, r.inputNoCache, r.cacheRead, r.output, r.total, r.cost.toFixed(6)];
-    return state.hasUsers ? [r.date, r.user, ...base.slice(1)] : base;
+    const base = [r.date];
+    if (state.hasUsers) base.push(r.user);
+    if (state.hasTeamFields) base.push(r.cloudAgentId, r.automationId);
+    base.push(r.kind, r.model, r.maxMode, r.inputCache, r.inputNoCache, r.cacheRead, r.output, r.total, r.cost.toFixed(6));
+    return base;
   });
 
   const csv = Papa.unparse({ fields: headers, data: rows });

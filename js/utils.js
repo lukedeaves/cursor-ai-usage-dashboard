@@ -54,25 +54,29 @@ export function normaliseDate(raw) {
   return s;
 }
 
+import { csvField } from './csv-fields.js';
+
 export function makeRowKey(r) {
-  return [r.date, r.user, r.kind, r.model, r.maxMode,
+  return [r.date, r.user, r.cloudAgentId, r.automationId, r.kind, r.model, r.maxMode,
     r.inputCache, r.inputNoCache, r.cacheRead,
     r.output, r.total, r.cost.toFixed(6)].join('|');
 }
 
 export function parseCsvRows(data) {
   return data.map(row => ({
-    date: normaliseDate(row['Date'] || row['date']),
-    user: String(row['User'] || row['user'] || '').trim(),
-    kind: String(row['Kind'] || row['kind'] || '').trim(),
-    model: String(row['Model'] || row['model'] || '').trim(),
-    maxMode: String(row['Max Mode'] || row['max_mode'] || '').trim(),
-    inputCache: parseNum(row['Input (w/ Cache Write)']),
-    inputNoCache: parseNum(row['Input (w/o Cache Write)']),
-    cacheRead: parseNum(row['Cache Read']),
-    output: parseNum(row['Output Tokens']),
-    total: parseNum(row['Total Tokens']),
-    cost: parseNum(row['Cost']),
+    date: normaliseDate(csvField(row, 'Date', 'date')),
+    user: String(csvField(row, 'User', 'user') ?? '').trim(),
+    cloudAgentId: String(csvField(row, 'Cloud Agent ID', 'Cloud Agent Id') ?? '').trim(),
+    automationId: String(csvField(row, 'Automation ID', 'Automation Id') ?? '').trim(),
+    kind: String(csvField(row, 'Kind', 'kind') ?? '').trim(),
+    model: String(csvField(row, 'Model', 'model') ?? '').trim(),
+    maxMode: String(csvField(row, 'Max Mode', 'max_mode') ?? '').trim(),
+    inputCache: parseNum(csvField(row, 'Input (w/ Cache Write)')),
+    inputNoCache: parseNum(csvField(row, 'Input (w/o Cache Write)')),
+    cacheRead: parseNum(csvField(row, 'Cache Read')),
+    output: parseNum(csvField(row, 'Output Tokens')),
+    total: parseNum(csvField(row, 'Total Tokens')),
+    cost: parseNum(csvField(row, 'Cost')),
   })).filter(r => r.date);
 }
 

@@ -1,11 +1,8 @@
 import { state } from './state.js';
 import { loadAllFromDB, clearDB } from './db.js';
 import { loadLastImport, saveSettings, getFilterState } from './settings.js';
-import {
-  importCsvFile, importMultipleFiles, importFromClipboard, loadSampleData,
-  exportFilteredCsv, exportChartPng, setImportCallback,
-} from './csv.js';
-import { initToasts, showToast, initTheme, toggleTheme, updateFreshnessLabel } from './ui.js';
+import { importCsvFile, importMultipleFiles, importFromClipboard, loadSampleData, loadTeamSampleData, exportFilteredCsv, exportChartPng, setImportCallback, isCsvLikeFile } from './csv.js';
+import { initToasts, showToast, initTheme, toggleTheme, updateFreshnessLabel, setThemeChangeCallback } from './ui.js';
 import {
   populateSlicers, updateSlicerOptions, applyFilters, applyPeriodPreset,
   resetFilters, restoreSettingsFromStorage, syncMetricGranUI,
@@ -51,9 +48,9 @@ export function onDataLoaded(sourceLabel, added, skipped) {
 
 async function handleFiles(files, multi = false) {
   if (!files?.length) return;
-  const csvFiles = [...files].filter(f => f.name?.toLowerCase().endsWith('.csv'));
+  const csvFiles = [...files].filter(isCsvLikeFile);
   if (!csvFiles.length) {
-    showToast('Please upload CSV file(s)', 'error');
+    showToast('Please select a CSV or text file', 'error');
     return;
   }
   try {
@@ -190,6 +187,9 @@ function setupFilters() {
 async function init() {
   initToasts();
   initTheme();
+  setThemeChangeCallback(() => {
+    if (state.rawData.length) renderAll();
+  });
   loadLastImport();
   updateFreshnessLabel();
   setImportCallback(onDataLoaded);
@@ -206,6 +206,10 @@ async function init() {
 
   document.getElementById('load-sample-btn').addEventListener('click', async () => {
     try { await loadSampleData(); } catch (e) { showToast(e.message, 'error'); }
+  });
+
+  document.getElementById('load-team-sample-btn')?.addEventListener('click', async () => {
+    try { await loadTeamSampleData(); } catch (e) { showToast(e.message, 'error'); }
   });
 
   document.getElementById('paste-csv-btn')?.addEventListener('click', async () => {
@@ -232,6 +236,7 @@ async function init() {
     state.rawData = [];
     state.filteredData = [];
     state.hasUsers = false;
+    state.hasTeamFields = false;
     destroyTable();
     setStorageLabel(0);
     document.getElementById('file-label').textContent = 'No file loaded';
@@ -270,6 +275,7 @@ async function init() {
     if (!rows.length) return;
     state.rawData = rows;
     state.hasUsers = state.rawData.some(r => r.user !== '');
+    state.hasTeamFields = state.rawData.some(r => r.cloudAgentId || r.automationId);
     document.getElementById('file-label').textContent = 'Loaded from storage';
     setStorageLabel(rows.length);
     restoreSettingsFromStorage();

@@ -19,6 +19,7 @@
     } from '../js/utils.js';
     import { forecastEndOfMonth, detectAnomalies, modelEfficiency, groupSessions } from '../js/analytics.js';
     import { validateCsvSchema } from '../js/schema.js';
+    import { normalizeCsvText, csvField } from '../js/csv-fields.js';
 
     const ul = document.getElementById('test-results');
     let failed = 0;
@@ -63,6 +64,23 @@
     test('modelEfficiency', () => {
       const rows = [{ model: 'gpt-4', cost: 1, total: 1000, output: 100 }];
       assert(modelEfficiency(rows).length === 1);
+    });
+
+    test('team CSV schema', () => {
+      const r = validateCsvSchema(['Date', 'User', 'Cloud Agent ID', 'Automation ID', 'Kind', 'Model', 'Max Mode', 'Input (w/ Cache Write)', 'Input (w/o Cache Write)', 'Cache Read', 'Output Tokens', 'Total Tokens', 'Cost']);
+      assert(r.valid);
+      assert(r.hasTeamFields);
+    });
+
+    test('BOM header normalization', () => {
+      const row = { '\ufeffDate': '2026-05-20T12:00:00Z', Kind: 'Included', Model: 'gpt-4', 'Max Mode': 'No', 'Input (w/ Cache Write)': '0', 'Input (w/o Cache Write)': '0', 'Cache Read': '0', 'Output Tokens': '0', 'Total Tokens': '0', Cost: '0' };
+      const parsed = parseCsvRows([row]);
+      assert(parsed.length === 1);
+      assert(parsed[0].date === '2026-05-20');
+    });
+
+    test('normalizeCsvText strips BOM', () => {
+      assert(normalizeCsvText('\ufeffDate,Cost\n').startsWith('Date'));
     });
 
     test('groupSessions', () => {

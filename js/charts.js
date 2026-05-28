@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { METRIC_CONFIG, fmtK, colorFor, fmt$ } from './utils.js';
 import { buildMetricByBucket, buildTokenComponentsByBucket } from './filters.js';
 import { modelEfficiency } from './analytics.js';
+import { cssVar } from './ui.js';
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -9,13 +10,24 @@ function chartAnimation() {
   return reducedMotion() ? false : { duration: 800, easing: 'easeOutQuart' };
 }
 
+function chartTheme() {
+  return {
+    tick: cssVar('--chart-tick', '#8890b0'),
+    label: cssVar('--chart-label', '#e8eaf0'),
+    grid: cssVar('--chart-grid', 'rgba(255,255,255,0.06)'),
+    tooltipBg: cssVar('--tooltip-bg', 'rgba(26, 29, 39, 0.92)'),
+    tooltipText: cssVar('--tooltip-text', '#e8eaf0'),
+  };
+}
+
 function glassTooltipOptions(fmtFn) {
+  const t = chartTheme();
   return {
     enabled: true,
-    backgroundColor: 'rgba(26, 29, 39, 0.92)',
-    titleColor: '#e8eaf0',
-    bodyColor: '#c8cce0',
-    borderColor: 'rgba(124, 106, 247, 0.45)',
+    backgroundColor: t.tooltipBg,
+    titleColor: t.tooltipText,
+    bodyColor: t.tooltipText,
+    borderColor: cssVar('--accent', '#7c6af7'),
     borderWidth: 1,
     cornerRadius: 10,
     padding: 12,
@@ -27,6 +39,22 @@ function glassTooltipOptions(fmtFn) {
         if (label) return `${label}: ${fmtFn(value)}`;
         return ' ' + fmtFn(value);
       },
+    },
+  };
+}
+
+function baseScales(fmtFn, stacked) {
+  const t = chartTheme();
+  return {
+    x: {
+      type: 'category',
+      ticks: { color: t.tick, maxTicksLimit: 12, font: { size: 11 } },
+      grid: { color: t.grid },
+    },
+    y: {
+      stacked,
+      ticks: { color: t.tick, font: { size: 11 }, callback: v => fmtFn(v) },
+      grid: { color: t.grid },
     },
   };
 }
@@ -75,7 +103,7 @@ export function renderCostChart() {
             if (meta.hidden) state.hiddenTokenComponents.add(label);
             else state.hiddenTokenComponents.delete(label);
           },
-          labels: { color: '#8890b0', font: { size: 11 }, usePointStyle: true, padding: 12 },
+          labels: { color: chartTheme().tick, font: { size: 11 }, usePointStyle: true, padding: 12 },
         },
         tooltip: glassTooltipOptions(fmtK),
       },
@@ -122,22 +150,6 @@ export function renderCostChart() {
     });
     state.costChart.update();
   }
-}
-
-function baseScales(fmtFn, stacked) {
-  const yScale = {
-    stacked,
-    ticks: { color: '#8890b0', font: { size: 11 }, callback: v => fmtFn(v) },
-    grid: { color: 'rgba(255,255,255,0.06)' },
-  };
-  return {
-    x: {
-      type: 'category',
-      ticks: { color: '#8890b0', maxTicksLimit: 12, font: { size: 11 } },
-      grid: { color: 'rgba(255,255,255,0.04)' },
-    },
-    y: yScale,
-  };
 }
 
 function budgetLinePlugin() {
@@ -196,6 +208,7 @@ export function renderModelChart() {
   const ctx = document.getElementById('model-chart').getContext('2d');
   if (state.modelChart) state.modelChart.destroy();
 
+  const t = chartTheme();
   state.modelChart = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -218,12 +231,12 @@ export function renderModelChart() {
       },
       scales: {
         x: {
-          ticks: { color: '#e8eaf0', font: { size: 11 }, maxRotation: 35, minRotation: 20 },
-          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: t.label, font: { size: 11 }, maxRotation: 35, minRotation: 20 },
+          grid: { color: t.grid },
         },
         y: {
-          ticks: { color: '#8890b0', font: { size: 11 }, callback: v => cfg.fmt(v) },
-          grid: { color: 'rgba(255,255,255,0.06)' },
+          ticks: { color: t.tick, font: { size: 11 }, callback: v => cfg.fmt(v) },
+          grid: { color: t.grid },
         },
       },
     },
@@ -243,6 +256,7 @@ export function renderEfficiencyChart() {
     return;
   }
 
+  const t = chartTheme();
   state.efficiencyChart = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -263,8 +277,8 @@ export function renderEfficiencyChart() {
         tooltip: { callbacks: { label: ctx => ' ' + fmt$(ctx.parsed.x) + ' / 1K tokens' } },
       },
       scales: {
-        x: { ticks: { color: '#8890b0', callback: v => fmt$(v) }, grid: { color: 'rgba(255,255,255,0.06)' } },
-        y: { ticks: { color: '#e8eaf0', font: { size: 10 } }, grid: { display: false } },
+        x: { ticks: { color: t.tick, callback: v => fmt$(v) }, grid: { color: t.grid } },
+        y: { ticks: { color: t.label, font: { size: 10 } }, grid: { display: false } },
       },
     },
   });

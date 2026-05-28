@@ -39,6 +39,14 @@ export function animateValue(el, endValue, formatter, duration = 600) {
   requestAnimationFrame(frame);
 }
 
+let onThemeChange = null;
+export function setThemeChangeCallback(fn) { onThemeChange = fn; }
+
+const ICONS = {
+  sun: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
+  moon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+};
+
 export function initTheme() {
   const saved = localStorage.getItem('cursor-usage-theme');
   const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
@@ -47,18 +55,25 @@ export function initTheme() {
 }
 
 export function setTheme(theme, persist = true) {
-  document.documentElement.dataset.theme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
   const btn = document.getElementById('theme-toggle');
   if (btn) {
-    btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-    btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    const isDark = theme === 'dark';
+    btn.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+    btn.innerHTML = isDark ? ICONS.sun : ICONS.moon;
+    btn.title = isDark ? 'Light mode' : 'Dark mode';
   }
   if (persist) localStorage.setItem('cursor-usage-theme', theme);
+  if (onThemeChange) onThemeChange(theme);
 }
 
 export function toggleTheme() {
-  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-  setTheme(next);
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  setTheme(current === 'light' ? 'dark' : 'light');
+}
+
+export function cssVar(name, fallback) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
 export function updateFreshnessLabel() {

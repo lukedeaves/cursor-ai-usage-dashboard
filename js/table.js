@@ -4,9 +4,19 @@ import { fmt$, fmtK } from './utils.js';
 export function renderTable() {
   const tableSource = state.filteredData;
   const tableData = tableSource.map(r => ({
-    date: r.date, user: r.user, kind: r.kind, model: r.model, maxMode: r.maxMode,
-    inputCache: r.inputCache, inputNoCache: r.inputNoCache, cacheRead: r.cacheRead,
-    output: r.output, total: r.total, cost: r.cost,
+    date: r.date,
+    user: r.user,
+    cloudAgentId: r.cloudAgentId,
+    automationId: r.automationId,
+    kind: r.kind,
+    model: r.model,
+    maxMode: r.maxMode,
+    inputCache: r.inputCache,
+    inputNoCache: r.inputNoCache,
+    cacheRead: r.cacheRead,
+    output: r.output,
+    total: r.total,
+    cost: r.cost,
   }));
 
   const totalCost = tableSource.reduce((s, r) => s + r.cost, 0);
@@ -16,7 +26,8 @@ export function renderTable() {
   const exportBtn = document.getElementById('export-btn');
   exportBtn.style.display = tableSource.length > 0 ? 'inline-flex' : 'none';
 
-  if (state.table && state.tableHasUsers !== state.hasUsers) {
+  const sig = `${state.hasUsers}|${state.hasTeamFields}`;
+  if (state.table && state.tableHasUsers !== sig) {
     state.table.destroy();
     state.table = null;
   }
@@ -26,10 +37,13 @@ export function renderTable() {
     return;
   }
 
-  state.tableHasUsers = state.hasUsers;
-  const userColumn = state.hasUsers
-    ? [{ title: 'User', field: 'user', sorter: 'string', width: 120 }]
-    : [];
+  state.tableHasUsers = sig;
+
+  const userCols = state.hasUsers ? [{ title: 'User', field: 'user', sorter: 'string', width: 120 }] : [];
+  const teamCols = state.hasTeamFields ? [
+    { title: 'Cloud Agent', field: 'cloudAgentId', sorter: 'string', width: 110 },
+    { title: 'Automation', field: 'automationId', sorter: 'string', width: 100 },
+  ] : [];
 
   state.table = new Tabulator('#data-table', {
     data: tableData,
@@ -41,7 +55,8 @@ export function renderTable() {
     initialSort: [{ column: 'date', dir: 'desc' }],
     columns: [
       { title: 'Date', field: 'date', sorter: 'string', width: 105 },
-      ...userColumn,
+      ...userCols,
+      ...teamCols,
       { title: 'Kind', field: 'kind', sorter: 'string', width: 90 },
       { title: 'Model', field: 'model', sorter: 'string', minWidth: 140 },
       { title: 'Max Mode', field: 'maxMode', sorter: 'string', width: 100 },

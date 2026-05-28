@@ -48,6 +48,29 @@ def run_e2e(page):
     kpi = page.locator('#kpi-requests').inner_text()
     assert kpi and kpi != '—', 'KPI should load'
     assert page.locator('#insights-content .insight-card').count() > 0
+
+    # Team CSV format
+    page.goto(BASE + '/index.html')
+    page.evaluate('() => { indexedDB.deleteDatabase("cursor-usage-db"); localStorage.clear(); }')
+    page.reload()
+    page.wait_for_selector('#load-team-sample-btn', state='visible', timeout=10000)
+    page.click('#load-team-sample-btn')
+    page.wait_for_selector('#dashboard', state='visible', timeout=15000)
+    assert page.locator('#kpi-requests').inner_text() != '—'
+    assert page.locator('#leaderboard-section').is_visible()
+
+    # Theme toggle
+    page.goto(BASE + '/index.html')
+    html = page.locator('html')
+    assert html.get_attribute('data-theme') in ('dark', 'light', None)
+    page.click('#theme-toggle')
+    page.wait_for_timeout(200)
+    theme_after = html.get_attribute('data-theme')
+    assert theme_after in ('dark', 'light')
+    page.click('#theme-toggle')
+    page.wait_for_timeout(200)
+    assert html.get_attribute('data-theme') != theme_after
+
     print('E2E: sample data loaded, KPI=' + kpi)
     return True
 

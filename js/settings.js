@@ -10,7 +10,7 @@ export function saveSettings(filterState) {
       metric: state.metric,
       granularity: state.granularity,
       budgetMonthly: state.budgetMonthly,
-      theme: document.documentElement.dataset.theme || 'dark',
+      theme: document.documentElement.getAttribute('data-theme') || 'dark',
     }));
   } catch { /* unavailable */ }
   syncUrlState(filterState);
