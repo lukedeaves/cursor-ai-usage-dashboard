@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Cursor Usage Dashboard",
+  "version": "1.0.0",
+  "description": "Open Cursor AI usage CSV exports in the local dashboard",
+  "permissions": ["downloads"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open Usage Dashboard",
+    "default_popup": "popup.html"
+  }
+}

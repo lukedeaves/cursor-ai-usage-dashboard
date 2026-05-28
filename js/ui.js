@@ -101,14 +101,10 @@ export function renderSparkline(canvas, values, color) {
   ctx.lineWidth = 2 * (devicePixelRatio || 1);
   ctx.stroke();
 
-  const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, color.replace(')', ', 0.35)').replace('rgb', 'rgba').replace('#', '') || color + '55');
-  grad.addColorStop(1, 'transparent');
   ctx.lineTo(w, h);
   ctx.lineTo(0, h);
   ctx.closePath();
-  ctx.fillStyle = typeof color === 'string' && color.startsWith('#')
-    ? color + '33' : 'rgba(124,106,247,0.2)';
+  ctx.fillStyle = color.startsWith('#') ? color + '33' : 'rgba(124,106,247,0.2)';
   ctx.fill();
 }
 

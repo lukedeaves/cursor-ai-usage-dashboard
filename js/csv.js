@@ -1,43 +1,69 @@
-import { parseCsvRows } from './utils.js';
+import { parseCsvRows, makeRowKey } from './utils.js';
 import { mergeRowsIntoDB, loadAllFromDB } from './db.js';
 import { state } from './state.js';
 import { saveLastImport } from './settings.js';
 import { showToast } from './ui.js';
+import { validateCsvSchema } from './schema.js';
+import { shouldUseWorker, parseCsvInWorker } from './csv-worker.js';
 
 let onImportComplete = null;
 export function setImportCallback(fn) { onImportComplete = fn; }
 
+async function ingestParsedRows(parsed, schema, sourceLabel) {
+  if (!parsed.length) throw new Error('No valid rows found in CSV');
+
+  if (schema?.message) {
+    showToast(schema.message, schema.valid ? 'info' : 'error', 8000);
+  }
+
+  let added = parsed.length;
+  let skipped = 0;
+  try {
+    const result = await mergeRowsIntoDB(parsed);
+    added = result.added;
+    skipped = result.skipped;
+    state.rawData = await loadAllFromDB();
+  } catch (err) {
+    console.warn('IndexedDB unavailable, using in-memory data:', err);
+    state.rawData = [...state.rawData, ...parsed];
+    const seen = new Set();
+    state.rawData = state.rawData.filter(r => {
+      const k = makeRowKey(r);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+
+  state.hasUsers = state.rawData.some(r => r.user !== '');
+  saveLastImport();
+  showToast(
+    `Imported ${sourceLabel}: +${added.toLocaleString()} new · ${skipped.toLocaleString()} duplicates skipped · ${state.rawData.length.toLocaleString()} total`,
+    'success'
+  );
+  if (onImportComplete) onImportComplete(sourceLabel, added, skipped);
+  return { added, skipped, total: state.rawData.length };
+}
+
 export async function importCsvText(text, sourceLabel = 'CSV') {
+  const label = document.getElementById('file-label');
+  if (label) label.textContent = `Parsing ${sourceLabel}…`;
+
+  if (shouldUseWorker(text)) {
+    const { rows, schema } = await parseCsvInWorker(text);
+    return ingestParsedRows(rows, schema, sourceLabel);
+  }
+
   return new Promise((resolve, reject) => {
     Papa.parse(text, {
       header: true,
       skipEmptyLines: true,
       async complete(results) {
         try {
+          const schema = validateCsvSchema(results.meta?.fields || []);
           const parsed = parseCsvRows(results.data);
-          if (!parsed.length) {
-            reject(new Error('No valid rows found in CSV'));
-            return;
-          }
-          let added = parsed.length;
-          let skipped = 0;
-          try {
-            const result = await mergeRowsIntoDB(parsed);
-            added = result.added;
-            skipped = result.skipped;
-            state.rawData = await loadAllFromDB();
-          } catch (err) {
-            console.warn('IndexedDB unavailable, using in-memory data:', err);
-            state.rawData = parsed;
-          }
-          state.hasUsers = state.rawData.some(r => r.user !== '');
-          saveLastImport();
-          showToast(
-            `Imported ${sourceLabel}: +${added.toLocaleString()} new · ${skipped.toLocaleString()} duplicates skipped · ${state.rawData.length.toLocaleString()} total`,
-            'success'
-          );
-          if (onImportComplete) onImportComplete(sourceLabel, added, skipped);
-          resolve({ added, skipped, total: state.rawData.length });
+          const result = await ingestParsedRows(parsed, schema, sourceLabel);
+          resolve(result);
         } catch (e) {
           reject(e);
         }
@@ -50,10 +76,29 @@ export async function importCsvText(text, sourceLabel = 'CSV') {
 }
 
 export async function importCsvFile(file) {
-  const label = document.getElementById('file-label');
-  if (label) label.textContent = `Parsing ${file.name}…`;
   const text = await file.text();
   return importCsvText(text, file.name);
+}
+
+export async function importMultipleFiles(fileList) {
+  const files = [...fileList].filter(f => f.name.toLowerCase().endsWith('.csv'));
+  if (!files.length) throw new Error('No CSV files selected');
+
+  let totalAdded = 0;
+  let totalSkipped = 0;
+  for (const file of files) {
+    const r = await importCsvFile(file);
+    totalAdded += r.added;
+    totalSkipped += r.skipped;
+  }
+  showToast(`Merged ${files.length} files: +${totalAdded} new rows total`, 'success');
+  return { files: files.length, added: totalAdded, skipped: totalSkipped };
+}
+
+export async function importFromClipboard() {
+  const text = await navigator.clipboard.readText();
+  if (!text.trim()) throw new Error('Clipboard is empty');
+  return importCsvText(text, 'clipboard');
 }
 
 export async function loadSampleData() {
@@ -61,8 +106,7 @@ export async function loadSampleData() {
   if (label) label.textContent = 'Loading sample data…';
   const res = await fetch('examples/sample_data.csv');
   if (!res.ok) throw new Error('Could not load sample data');
-  const text = await res.text();
-  return importCsvText(text, 'sample data');
+  return importCsvText(await res.text(), 'sample data');
 }
 
 export function exportFilteredCsv() {
@@ -80,16 +124,11 @@ export function exportFilteredCsv() {
   const csv = Papa.unparse({ fields: headers, data: rows });
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  link.href = url;
+  link.href = URL.createObjectURL(blob);
   const dates = state.filteredData.map(r => r.date).filter(Boolean).sort();
-  const dateStr = dates.length ? `_${dates[0]}_to_${dates[dates.length - 1]}` : '';
-  link.download = `cursor-usage${dateStr}.csv`;
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
+  link.download = `cursor-usage${dates.length ? `_${dates[0]}_to_${dates[dates.length - 1]}` : ''}.csv`;
   link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(link.href);
   showToast('Filtered CSV exported', 'success');
 }
 

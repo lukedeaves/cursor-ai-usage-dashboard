@@ -2,146 +2,93 @@
 
 A privacy-first web application for visualizing Cursor AI usage data, spending, and token consumption. Upload your CSV export to generate interactive charts, filter by date range/users/models, and analyze your AI usage patterns — all in your browser.
 
-**Live demo:** Enable GitHub Pages in repo Settings → Pages (workflow included), or run locally with `make serve`.
+## Quick Start
+
+```bash
+git clone https://github.com/lukedeaves/cursor-ai-usage-dashboard.git
+cd cursor-ai-usage-dashboard
+make serve
+```
+
+Open **http://localhost:8080** and click **Try sample data** — or import your Cursor usage CSV.
+
+> ES modules and the service worker require a local server. Do not open `index.html` directly via `file://`.
 
 ## Features
 
-- **CSV Import/Export** — Upload Cursor usage CSV files; export filtered data
-- **Try sample data** — One-click demo with included example CSV
-- **Drag & drop** — Drop CSV files anywhere on the page
-- **Interactive charts** — Time series (cost/requests/tokens), model breakdown, token component stacks
-- **KPI cards** — Totals with sparklines, count-up animation, and period-over-period deltas
-- **Advanced filtering** — Date range, period presets, multi-select users/kinds/models, cascading options
-- **Budget line** — Optional monthly budget overlay on the cost chart
-- **URL state** — Shareable links preserve filter settings
-- **Light/dark theme** — Manual toggle with system preference default
-- **Offline-ready** — Vendored libraries + service worker caching
-- **PWA** — Installable as a standalone app
+### Core
+- CSV import/export, drag-and-drop, multi-file merge, clipboard paste
+- Interactive charts (time series, model breakdown, token components)
+- KPI cards with sparklines, count-up animation, period-over-period deltas
+- Advanced filtering with period presets, cascading multi-selects, saved views
+- IndexedDB persistence, URL-encoded filter state, light/dark theme
+
+### Analytics
+- **Spend forecasting** — projected end-of-month cost
+- **Anomaly detection** — flags unusual cost/token spikes
+- **Model efficiency** — cost per 1K tokens by model
+- **Team leaderboard** — user rankings when CSV includes `User`
+- **Work sessions** — clusters requests by 30-minute gaps
+- **Period compare** — side-by-side charts for two date ranges
+
+### UX
+- Command palette (`/` key)
+- Guided tour (first load)
+- PDF report (print-friendly summary)
+- Schema validation with warnings when Cursor CSV format changes
+- Web Worker parsing for large CSV files
+
+### Optional extras
+- **Browser extension** — see `extension/README.md`
+- **Desktop shell** — `make desktop` (optional pywebview)
+- **PWA** — installable; works offline after first load
 
 ## Screenshots
 
-### Empty State
 ![Empty State](screenshots/empty_state.png)
 
-### Dashboard with Data Loaded
 ![Loaded State](screenshots/loaded_state.png)
 
-## Quick Start
+## Usage
 
-### Option 1 — Open directly (simplest)
+1. Export from Cursor: **Settings → Usage → Export**
+2. Import via button, drag-and-drop, paste, multi-import, or folder watch (Chrome/Edge)
+3. Use filters, insights, compare mode, and export CSV/PNG/PDF
 
-1. Clone or download this repository
-2. Open `index.html` in a modern browser
-
-> For full features (ES modules, service worker), use a local server (Option 2).
-
-### Option 2 — Local server (recommended)
-
-```bash
-# Python (zero install on most systems)
-make serve
-# → http://localhost:8080
-
-# Or with Node
-make start
-# → http://localhost:8080
-
-# Or Docker
-make docker
-# → http://localhost:8080
-```
-
-### Option 3 — Try without your own data
-
-1. Start the server
-2. Click **Try sample data** on the welcome screen
-
-## Usage Guide
-
-### Getting your CSV
-
-1. In Cursor: **Settings → Usage → Export**
-2. Click **Import CSV** or drag the file onto the page
-
-### Filtering
-
-- **Period presets** — Last 7 days, Last 30 days, This month, All time
-- **Date range** — Custom From/To pickers
-- **Multi-select** — User, Kind, Model (with search)
-- **Reset filters** — Clears filters but keeps metric/granularity
-- **Reset all** — Clears everything including metric and granularity
-
-### Metrics & charts
-
-- Toggle **Requests / Cost / Tokens** in the filter bar, or click a KPI card
-- Adjust time granularity: **Day / Week / Month**
-- Set a **Budget $** value to show a budget line on the cost chart
-- Click **Save PNG** to export the time-series chart
-
-### Export & privacy
-
-- **Export CSV** — Downloads currently filtered rows
-- **Clear stored data** — Wipes IndexedDB (with confirmation)
-- All processing is client-side; data never leaves your browser
-
-## CSV Format
-
-### Required columns
-
-- `Date`, `Kind`, `Model`, `Max Mode`
-- `Input (w/ Cache Write)`, `Input (w/o Cache Write)`, `Cache Read`
-- `Output Tokens`, `Total Tokens`, `Cost`
-
-### Optional
-
-- `User` — Enables user filter when present
-
-See [`examples/sample_data.csv`](examples/sample_data.csv) for an example.
+Press **`/`** for the command palette.
 
 ## Development
 
 ```bash
-npm install          # Install dev dependencies
-npm test             # Run Vitest unit tests
-npm run vendor       # Verify vendored libraries
-npm run screenshots  # Regenerate README screenshots (requires Playwright)
+make serve        # Start Python server on :8080
+make test         # Unit + E2E tests (requires pip install -r requirements-dev.txt)
+make vendor       # Verify vendored libraries
+make screenshots  # Regenerate README screenshots
+make desktop      # Optional native window (pip install pywebview)
 ```
 
 ### Project structure
 
 ```
 ├── index.html          # App shell
-├── css/                # Design tokens, layout, components
-├── js/                 # ES modules (app, charts, filters, csv, db, …)
-├── vendor/             # Chart.js, Tabulator, Papa Parse (offline)
-├── tests/              # Vitest tests
-├── examples/           # Sample CSV data
-├── sw.js               # Service worker
-├── manifest.json       # PWA manifest
-├── Makefile            # serve, test, docker shortcuts
-└── docker-compose.yml  # nginx static server
+├── css/                # Styles
+├── js/                 # ES modules
+├── vendor/             # Chart.js, Tabulator, Papa Parse
+├── tests/              # Browser-based unit tests
+├── extension/          # Chrome extension (optional)
+├── desktop/            # pywebview launcher (optional)
+├── examples/           # Sample CSV
+└── Makefile            # Python-only commands
 ```
-
-See [`DEPENDENCIES.md`](DEPENDENCIES.md) for library versions and update instructions.
-
-## Browser Compatibility
-
-Requires a modern browser with:
-
-- ES modules
-- IndexedDB
-- Canvas (Chart.js)
-
-Tested in Chromium, Firefox, and Safari (latest).
 
 ## Deploy to GitHub Pages
 
-Push to `main` — the included workflow (`.github/workflows/pages.yml`) deploys the static site automatically once GitHub Pages is enabled for the repository.
+Enable Pages in repo settings — workflow at `.github/workflows/pages.yml` deploys on push to `main`.
 
-## Contributing
+## Browser Compatibility
 
-Contributions welcome! Run `npm test` before submitting a PR.
+Modern browsers with ES modules, IndexedDB, and Canvas. Folder watch requires Chrome/Edge (File System Access API).
 
 ## License
 
-GNU General Public License v3.0 — see [LICENSE](LICENSE).
+GNU GPL v3.0 — see [LICENSE](LICENSE).

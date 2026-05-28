@@ -15,6 +15,7 @@
   <link href="css/tokens.css" rel="stylesheet" />
   <link href="css/layout.css" rel="stylesheet" />
   <link href="css/components.css" rel="stylesheet" />
+  <link href="css/features.css" rel="stylesheet" />
   <script src="vendor/papaparse.min.js"></script>
   <script src="vendor/chart.umd.min.js"></script>
   <script src="vendor/tabulator.min.js"></script>
@@ -37,7 +38,10 @@
     <span id="date-range-badge"></span>
     <span id="storage-label"></span>
     <span id="freshness-label"></span>
+    <span id="folder-watch-label" style="display:none"></span>
     <span id="file-label">No file loaded</span>
+    <button type="button" class="icon-btn" id="help-tour-btn" title="Guided tour" aria-label="Start tour">?</button>
+    <button type="button" class="icon-btn" id="cmd-hint-btn" title="Command palette (press /)" aria-label="Command palette">⌘</button>
     <button type="button" class="icon-btn" id="theme-toggle" aria-label="Switch theme">☀️</button>
     <button type="button" class="clear-btn" id="clear-data-btn" style="display:none">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
@@ -53,7 +57,12 @@
       </svg>
       Import CSV
     </label>
-    <input type="file" id="file-input" accept=".csv,text/csv" />
+    <input type="file" id="file-input" accept=".csv,text/csv" multiple />
+    <button type="button" class="btn-secondary btn-sm" id="paste-csv-btn" title="Paste CSV from clipboard">Paste</button>
+    <label class="btn-secondary btn-sm" for="file-input-multi" title="Import multiple CSV files">Multi-import</label>
+    <input type="file" id="file-input-multi" accept=".csv,text/csv" multiple hidden />
+    <button type="button" class="btn-secondary btn-sm" id="watch-folder-btn" title="Auto-import new CSVs from a folder">Watch folder</button>
+    <button type="button" class="btn-secondary btn-sm" id="stop-watch-btn" title="Stop folder watch">Stop watch</button>
   </div>
 </header>
 
@@ -78,7 +87,9 @@
         Import CSV
       </label>
       <button type="button" class="btn-secondary" id="load-sample-btn">Try sample data</button>
+      <button type="button" class="btn-secondary" id="paste-csv-btn-empty">Paste from clipboard</button>
       <a class="btn-secondary" href="examples/sample_data.csv" download>Download example CSV</a>
+      <span class="kbd-hint">Press <kbd>/</kbd> for commands</span>
     </div>
   </div>
 
@@ -114,6 +125,11 @@
         </div>
         <button type="button" class="reset-btn" id="f-reset" title="Reset filters only">Reset filters</button>
         <button type="button" class="reset-btn" id="f-reset-all" title="Reset filters, metric, and granularity">Reset all</button>
+        <div class="views-controls">
+          <select id="saved-views-select" aria-label="Saved views"><option value="">Saved views…</option></select>
+          <button type="button" class="reset-btn" id="save-view-btn">Save view</button>
+          <button type="button" class="reset-btn" id="delete-view-btn">Delete view</button>
+        </div>
         <div class="filter-group" style="margin-left:auto;">
           <label>Metric</label>
           <div class="toggle-group" id="metric-toggle">
@@ -156,6 +172,52 @@
       </div>
     </div>
 
+    <div class="section-card animate-in" id="insights-section">
+      <h2>Insights</h2>
+      <div id="insights-content"></div>
+    </div>
+
+    <div class="section-card animate-in" id="compare-section" style="display:none">
+      <div class="section-header">
+        <h2>Compare periods <small id="compare-summary"></small></h2>
+        <label class="budget-control"><input type="checkbox" id="compare-toggle" /> Enable compare</label>
+      </div>
+      <div class="compare-controls">
+        <div class="compare-period">
+          <span>Period A</span>
+          <input type="date" id="compare-a-from" aria-label="Period A from" />
+          <input type="date" id="compare-a-to" aria-label="Period A to" />
+        </div>
+        <div class="compare-period">
+          <span>Period B</span>
+          <input type="date" id="compare-b-from" aria-label="Period B from" />
+          <input type="date" id="compare-b-to" aria-label="Period B to" />
+        </div>
+      </div>
+      <div class="chart-wrap" id="compare-chart-wrap">
+        <canvas id="compare-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="two-col animate-in">
+      <div class="section-card">
+        <h2>Model efficiency <small>$/1K tokens · lower is better</small></h2>
+        <div class="chart-wrap" id="efficiency-chart-wrap">
+          <canvas id="efficiency-chart"></canvas>
+        </div>
+        <div id="efficiency-table"></div>
+      </div>
+      <div class="section-card" id="leaderboard-section" style="display:none">
+        <h2>Team leaderboard</h2>
+        <div id="leaderboard-table"></div>
+      </div>
+    </div>
+
+    <div class="section-card animate-in">
+      <h2>Work sessions <small>Grouped by 30 min gaps</small></h2>
+      <div id="sessions-list"></div>
+    </div>
+
     <div class="section-card animate-in">
       <div class="section-header">
         <h2 id="time-chart-title">Requests Over Time</h2>
@@ -191,6 +253,7 @@
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export CSV
         </button>
+        <button type="button" class="btn-secondary btn-sm" id="export-pdf-btn">PDF report</button>
       </div>
       <div id="data-table-wrap">
         <div id="data-table"></div>
@@ -198,6 +261,26 @@
     </div>
   </div>
 </main>
+
+<div id="cmd-palette" role="dialog" aria-label="Command palette">
+  <div class="cmd-panel">
+    <input type="text" id="cmd-input" placeholder="Type a command…" autocomplete="off" aria-label="Search commands" />
+    <div id="cmd-list"></div>
+  </div>
+</div>
+
+<div id="tour-overlay" role="dialog" aria-label="Guided tour">
+  <div class="tour-backdrop"></div>
+  <div class="tour-card">
+    <div class="tour-step-label" id="tour-step">1 / 6</div>
+    <h3 id="tour-title">Welcome</h3>
+    <p id="tour-text"></p>
+    <div class="tour-actions">
+      <button type="button" class="reset-btn" id="tour-skip">Skip tour</button>
+      <button type="button" class="upload-btn btn-sm" id="tour-next">Next</button>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="js/app.js"></script>
 <script>

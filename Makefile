@@ -1,24 +1,18 @@
-.PHONY: serve start test vendor docker screenshots open
+.PHONY: serve test vendor screenshots desktop
 
 PORT ?= 8080
 
 serve:
 	python3 -m http.server $(PORT)
 
-start:
-	npx serve . -l $(PORT)
-
-open: serve
-	@echo "Open http://localhost:$(PORT) in your browser"
-
 test:
-	npm test
+	python3 scripts/run_tests.py
 
 vendor:
-	npm run vendor
-
-docker:
-	docker compose up --build
+	python3 scripts/vendor_check.py
 
 screenshots:
-	npm run screenshots
+	python3 scripts/capture_screenshots.py
+
+desktop:
+	python3 desktop/run.py

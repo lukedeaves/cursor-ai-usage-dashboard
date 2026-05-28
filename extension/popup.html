@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: system-ui, sans-serif; width: 280px; padding: 16px; margin: 0; }
+    h1 { font-size: 1rem; margin: 0 0 8px; }
+    p { font-size: 0.85rem; color: #555; margin: 0 0 12px; }
+    button { width: 100%; padding: 10px; border: none; border-radius: 8px; background: #7c6af7; color: #fff; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Cursor Usage Dashboard</h1>
+  <p>Open the local analytics dashboard in a new tab.</p>
+  <button id="open">Open dashboard</button>
+  <p style="font-size:0.75rem;color:#888">Run <code>make serve</code> in the repo first.</p>
+  <script>
+    document.getElementById('open').onclick = () => {
+      chrome.tabs.create({ url: 'http://127.0.0.1:8080/index.html' });
+    };
+  </script>
+</body>
+</html>

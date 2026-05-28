@@ -1,6 +1,6 @@
 # Third-Party Dependencies
 
-This project vendors browser libraries locally under `vendor/` for offline use and reproducible builds.
+Browser libraries are vendored locally under `vendor/` for offline use.
 
 | Library | Version | License | Purpose |
 |---------|---------|---------|---------|
@@ -8,13 +8,22 @@ This project vendors browser libraries locally under `vendor/` for offline use a
 | [Chart.js](https://www.chartjs.org/) | 4.4.3 | MIT | Interactive charts |
 | [Tabulator](https://tabulator.info/) | 6.2.1 | MIT | Sortable data table |
 
-## External Resources (CDN)
+## External CDN
 
 | Resource | Purpose |
 |----------|---------|
-| [Google Fonts — DM Sans](https://fonts.google.com/specimen/DM+Sans) | Typography (loaded from CDN; optional offline fallback to system fonts) |
+| [Google Fonts — DM Sans](https://fonts.google.com/specimen/DM+Sans) | Typography |
 
-## Updating Vendor Files
+## Dev dependencies (optional, Python only)
+
+```bash
+pip install -r requirements-dev.txt
+playwright install chromium
+```
+
+Used for `make test` and `make screenshots`.
+
+## Updating vendor files
 
 ```bash
 cd vendor
@@ -22,9 +31,5 @@ curl -fsSL -o papaparse.min.js "https://cdnjs.cloudflare.com/ajax/libs/PapaParse
 curl -fsSL -o chart.umd.min.js "https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
 curl -fsSL -o tabulator.min.css "https://unpkg.com/tabulator-tables@6.2.1/dist/css/tabulator.min.css"
 curl -fsSL -o tabulator.min.js "https://unpkg.com/tabulator-tables@6.2.1/dist/js/tabulator.min.js"
-npm run vendor
+make vendor
 ```
-
-## Removed
-
-- **chartjs-adapter-date-fns** — was loaded but unused (charts use category axis, not time scale).

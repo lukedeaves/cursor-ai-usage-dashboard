@@ -13,4 +13,7 @@ export const state = {
   budgetMonthly: null,
   lastImportAt: null,
   periodPreset: 'all',
+  compareEnabled: false,
+  compareChart: null,
+  efficiencyChart: null,
 };

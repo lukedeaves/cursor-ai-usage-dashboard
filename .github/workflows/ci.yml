@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: '20'
-          cache: npm
-      - run: npm ci
-      - run: npm run vendor
-      - run: npm test
+          python-version: '3.12'
+      - run: pip install -r requirements-dev.txt
+      - run: playwright install chromium
+      - run: make vendor
+      - run: make test
 
   lint-structure:
     runs-on: ubuntu-latest

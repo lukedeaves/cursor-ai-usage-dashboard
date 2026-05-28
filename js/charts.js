@@ -1,6 +1,7 @@
 import { state } from './state.js';
-import { METRIC_CONFIG, fmtK, colorFor } from './utils.js';
+import { METRIC_CONFIG, fmtK, colorFor, fmt$ } from './utils.js';
 import { buildMetricByBucket, buildTokenComponentsByBucket } from './filters.js';
+import { modelEfficiency } from './analytics.js';
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -224,6 +225,46 @@ export function renderModelChart() {
           ticks: { color: '#8890b0', font: { size: 11 }, callback: v => cfg.fmt(v) },
           grid: { color: 'rgba(255,255,255,0.06)' },
         },
+      },
+    },
+  });
+}
+
+export function renderEfficiencyChart() {
+  const canvas = document.getElementById('efficiency-chart');
+  if (!canvas) return;
+
+  const data = modelEfficiency(state.filteredData).slice(0, 10);
+  const ctx = canvas.getContext('2d');
+  if (state.efficiencyChart) state.efficiencyChart.destroy();
+
+  if (!data.length) {
+    state.efficiencyChart = null;
+    return;
+  }
+
+  state.efficiencyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.model),
+      datasets: [{
+        label: 'Cost per 1K tokens ($)',
+        data: data.map(d => d.costPer1k),
+        backgroundColor: data.map((_, i) => colorFor(i)),
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + fmt$(ctx.parsed.x) + ' / 1K tokens' } },
+      },
+      scales: {
+        x: { ticks: { color: '#8890b0', callback: v => fmt$(v) }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        y: { ticks: { color: '#e8eaf0', font: { size: 10 } }, grid: { display: false } },
       },
     },
   });

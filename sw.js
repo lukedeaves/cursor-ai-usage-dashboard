@@ -1,4 +1,4 @@
-const CACHE = 'cursor-usage-v2';
+const CACHE = 'cursor-usage-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -16,6 +16,18 @@ const ASSETS = [
   './js/render.js',
   './js/charts.js',
   './js/table.js',
+  './css/features.css',
+  './js/schema.js',
+  './js/analytics.js',
+  './js/insights.js',
+  './js/compare.js',
+  './js/views.js',
+  './js/command-palette.js',
+  './js/tour.js',
+  './js/folder-watch.js',
+  './js/csv-worker.js',
+  './js/workers/csv-parse.worker.js',
+  './tests/unit-tests.html',
   './vendor/papaparse.min.js',
   './vendor/chart.umd.min.js',
   './vendor/tabulator.min.css',

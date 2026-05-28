@@ -2,8 +2,10 @@ import { state } from './state.js';
 import { METRIC_CONFIG, fmt$, fmtK, buildMetricByBucket } from './utils.js';
 import { getPreviousPeriodRows, computeTotals, pctChange, buildTokenComponentsByBucket } from './filters.js';
 import { animateValue, renderSparkline, staggerDashboard } from './ui.js';
-import { renderCostChart, renderModelChart } from './charts.js';
+import { renderCostChart, renderModelChart, renderEfficiencyChart } from './charts.js';
 import { renderTable } from './table.js';
+import { renderInsightsPanel, renderModelEfficiencyTable, renderLeaderboard, renderSessionsList } from './insights.js';
+import { renderCompareChart } from './compare.js';
 
 export function renderAll() {
   if (!state.filteredData.length && !state.rawData.length) return;
@@ -20,8 +22,14 @@ export function renderAll() {
   }
 
   renderKPIs();
+  renderInsightsPanel();
+  renderModelEfficiencyTable();
+  renderEfficiencyChart();
+  renderLeaderboard();
+  renderSessionsList();
   renderCostChart();
   renderModelChart();
+  if (state.compareEnabled) renderCompareChart();
   renderTable();
 }
 

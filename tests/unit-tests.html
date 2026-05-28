@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Unit Tests</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; }
+    .pass { color: green; }
+    .fail { color: red; }
+  </style>
+</head>
+<body>
+  <h1>Unit Tests</h1>
+  <ul id="test-results"></ul>
+  <script type="module">
+    import {
+      parseNum, normaliseDate, makeRowKey, parseCsvRows, applyRowFilters,
+      bucketKey, buildMetricByBucket, getPeriodPresetRange, pctChange, computeTotals,
+    } from '../js/utils.js';
+    import { forecastEndOfMonth, detectAnomalies, modelEfficiency, groupSessions } from '../js/analytics.js';
+    import { validateCsvSchema } from '../js/schema.js';
+
+    const ul = document.getElementById('test-results');
+    let failed = 0;
+
+    function test(name, fn) {
+      try {
+        fn();
+        ul.innerHTML += `<li class="pass">✓ ${name}</li>`;
+      } catch (e) {
+        failed++;
+        ul.innerHTML += `<li class="fail">✗ ${name}: ${e.message}</li>`;
+      }
+    }
+
+    function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
+
+    test('parseNum', () => {
+      assert(parseNum('1.14') === 1.14);
+      assert(parseNum('-') === 0);
+    });
+
+    test('normaliseDate ISO', () => {
+      assert(normaliseDate('2026-03-08T03:24:43.852Z') === '2026-03-08');
+    });
+
+    test('validateCsvSchema', () => {
+      const r = validateCsvSchema(['Date', 'Kind', 'Model', 'Max Mode', 'Input (w/ Cache Write)', 'Input (w/o Cache Write)', 'Cache Read', 'Output Tokens', 'Total Tokens', 'Cost']);
+      assert(r.valid);
+    });
+
+    test('applyRowFilters', () => {
+      const rows = [{ date: '2026-03-01', user: 'A', kind: 'X', model: 'm', cost: 1, maxMode: '', inputCache: 0, inputNoCache: 0, cacheRead: 0, output: 0, total: 0 }];
+      assert(applyRowFilters(rows, { from: '2026-03-01', to: '2026-03-01', users: ['A'], kinds: [], models: [] }).length === 1);
+    });
+
+    test('forecastEndOfMonth', () => {
+      const rows = [{ date: '2026-03-05', cost: 1, total: 0, output: 0 }];
+      const f = forecastEndOfMonth(rows, new Date('2026-03-10'));
+      assert(f && f.projected > 0);
+    });
+
+    test('modelEfficiency', () => {
+      const rows = [{ model: 'gpt-4', cost: 1, total: 1000, output: 100 }];
+      assert(modelEfficiency(rows).length === 1);
+    });
+
+    test('groupSessions', () => {
+      const rows = [
+        { date: '2026-03-01T10:00:00Z', model: 'a', cost: 0, total: 0, output: 0 },
+        { date: '2026-03-01T10:05:00Z', model: 'a', cost: 0, total: 0, output: 0 },
+      ];
+      assert(groupSessions(rows).length >= 1);
+    });
+
+    ul.dataset.done = '1';
+    if (failed) ul.innerHTML += `<li class="fail">${failed} test(s) failed</li>`;
+  </script>
+</body>
+</html>
